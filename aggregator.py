@@ -9,38 +9,13 @@ from sklearn.metrics import confusion_matrix
 
 
 class Aggregator():
-    def __init__(self, clients, model, rounds, device):
+    def __init__(self, clients, model, rounds, device, differentialPrivacy=False):
         self.model = model
         self.rounds = rounds
         self.clients = clients
+        self.differentialPrivacy = differentialPrivacy
 
         self.device = device
-
-    # FUNCTION FOR COMPUTING PREDICTIONS
-    def predict(self, net, xtst):
-        with torch.no_grad():
-            outputs = net(xtst.to(self.device))
-            _, predicted = torch.max(outputs.to(self.device), 1)
-        return predicted.to(self.device)
-
-    # FUNCTION TO MANIPULATE THE MODEL FOR BYZANTINE ADVERSARIES
-    def manipulateModel(self, model, alpha=20):
-        params = model.named_parameters()
-        for name1, param1 in params:
-            noise = alpha * torch.randn(param1.data.size()).to(self.device)
-            param1.data.copy_(param1.data + noise)
-
-    # FUNCTION TO MERGE THE MODELS
-    @staticmethod
-    def mergeModels(mOrig, mDest, alphaOrig, alphaDest):
-        paramsDest = mDest.named_parameters()
-        dictParamsDest = dict(paramsDest)
-        paramsOrig = mOrig.named_parameters()
-        for name1, param1 in paramsOrig:
-            if name1 in dictParamsDest:
-                weightedSum = alphaOrig * param1.data \
-                              + alphaDest * dictParamsDest[name1].data
-                dictParamsDest[name1].data.copy_(weightedSum)
 
     def trainAndTest(self, xTest, yTest):
         raise Exception("Train method should be override by child class, "
@@ -56,7 +31,10 @@ class Aggregator():
             if client.byz:
                 # Malicious model update
                 # print("Malicous update for user ",u.id)
-                self.manipulateModel(client.model)
+                client.manipulateModel()
+
+            if self.differentialPrivacy:
+                client.privacyPreserve()
 
     def test(self, xTest, yTest):
         # Compute test accuracy
@@ -66,6 +44,25 @@ class Aggregator():
         errors = 1 - 1.0 * mconf.diagonal().sum() / xTest.size(0)
         print("Error Rate: ", round(100.0 * errors, 3), "%")
         return errors
+
+    # Function for computing predictions
+    def predict(self, net, x):
+        with torch.no_grad():
+            outputs = net(x.to(self.device))
+            _, predicted = torch.max(outputs.to(self.device), 1)
+        return predicted.to(self.device)
+
+    # Function to merge the models
+    @staticmethod
+    def mergeModels(mOrig, mDest, alphaOrig, alphaDest):
+        paramsDest = mDest.named_parameters()
+        dictParamsDest = dict(paramsDest)
+        paramsOrig = mOrig.named_parameters()
+        for name1, param1 in paramsOrig:
+            if name1 in dictParamsDest:
+                weightedSum = alphaOrig * param1.data \
+                              + alphaDest * dictParamsDest[name1].data
+                dictParamsDest[name1].data.copy_(weightedSum)
 
 
 # FEDERATED AVERAGING AGGREGATOR
@@ -215,7 +212,10 @@ class AFAAggregator(Aggregator):
                     error, pred = client.trainModel()
                     if client.byz:
                         # Malicious model
-                        self.manipulateModel(client.model)
+                        client.manipulateModel()
+
+                    if self.differentialPrivacy:
+                        client.privacyPreserve()
 
             badCount = 2
             slack = 2
@@ -351,7 +351,6 @@ class AFAAggregator(Aggregator):
         if s > th:
             blocked = True
         return blocked
-
 
     @staticmethod
     def updateUserScore(client):

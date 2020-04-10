@@ -5,6 +5,7 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 import syft as sy
 from typing import List
+from numpy import clip
 
 
 class a:
@@ -12,18 +13,12 @@ class a:
         return 1
 
 
-c = [a]
-d = c[0]()
-# print("print:{}".format(d.b()))
+a = dict([(1, 2), (3, 2)])
+b = dict([(1, 2), (4, 2)])
 
-a = dict()
-a['a'] = 1
-a['b'] = 2
-a['c'] = 3
+print(list(set(a.keys()).difference(b.keys()))[0])
 
-print(tuple(a.keys()))
-
-exit(0)
+raise Exception("gata")
 
 workers_num = 3
 hook = sy.TorchHook(torch)

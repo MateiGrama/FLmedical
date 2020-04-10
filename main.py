@@ -2,28 +2,28 @@ import torch
 import matplotlib.pyplot as plt
 
 from aggregator import aggregators
-import classifierMNIST
+from dataUtils import loadMNISTdata
 from client import Client
-from dataUtils import getMNISTdata
+import classifierMNIST
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 classifier = classifierMNIST.Classifier
 
 # TRAINING PARAMETERS
-rounds = 20  # TOTAL NUMBER OF TRAINING ROUNDS
+rounds = 2  # TOTAL NUMBER OF TRAINING ROUNDS
 epochs = 10  # NUMBER OF EPOCHS RUN IN EACH CLIENT BEFORE SENDING BACK THE MODEL UPDATE
 batch_size = 200  # BATCH SIZE
 
 
-def trainOnMNIST(aggregator, perc_users, labels, faulty, flipping):
+def trainOnMNIST(aggregator, perc_users, labels, faulty, flipping, privacyPreserving=False):
     print("Loading MNIST...")
-    training_data, training_labels, xTest, yTest = getMNISTdata(perc_users, labels)
+    training_data, training_labels, xTest, yTest = loadMNISTdata(perc_users, labels)
 
     clients = initClients(perc_users, training_data, training_labels, faulty, flipping)
 
     # CREATE MODEL
     model = classifier().to(device)
-    aggregator = aggregator(clients, model, rounds, device)
+    aggregator = aggregator(clients, model, rounds, device, privacyPreserving)
     return aggregator.trainAndTest(xTest, yTest)
 
 
@@ -70,31 +70,74 @@ def initClients(perc_users, training_data, training_labels, faulty, flipping):
     return clients
 
 
-# perc_users = torch.tensor([0.2, 0.10, 0.15, 0.15, 0.15, 0.15, 0.1])
-# labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-# faulty = []
-# malicious = []
+# EXPERIMENTS #
 
-perc_users = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1])
-labels = torch.tensor([0, 2, 5, 8])
-faulty = [2, 6]
-malicious = [1]
-
-errorsDict = dict()
-for aggregator in aggregators:
-    name = aggregator.__name__.replace("Aggregator", "")
-    print("TRAINING {}...".format(name))
-    errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious)
+def noByzClientMNISTExperiment():
+    perc_users = torch.tensor([0.2, 0.10, 0.15, 0.15, 0.15, 0.15, 0.1])
+    labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    faulty = []
+    malicious = []
+    testAggregators(perc_users, labels, faulty, malicious)
 
 
-plt.figure()
-i = 0
-colors = ['b', 'k', 'r', 'g']
-for name, err in errorsDict.items():
-    plt.plot(err.numpy(), color=colors[i])
-    i += 1
-plt.legend(errorsDict.keys())
-plt.show()
+def byzClientMNISTExperiment():
+    perc_users = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1])
+    labels = torch.tensor([0, 2, 5, 8])
+    faulty = [2, 6]
+    malicious = [1]
+    testAggregators(perc_users, labels, faulty, malicious)
 
-exit(0)
 
+def privacyPreservingNoByzClientMNISTExperiment():
+    perc_users = torch.tensor([0.2, 0.10, 0.15, 0.15, 0.15, 0.15, 0.1])
+    labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    faulty = []
+    malicious = []
+    testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious)
+
+
+def privacyPreservingByzClientMNISTExperiment():
+    perc_users = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1])
+    labels = torch.tensor([0, 2, 5, 8])
+    faulty = [2, 6]
+    malicious = [1]
+    testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious)
+
+
+def testAggregators(perc_users, labels, faulty, malicious):
+    errorsDict = dict()
+    for aggregator in aggregators:
+        name = aggregator.__name__.replace("Aggregator", "")
+        print("TRAINING {}...".format(name))
+        errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious)
+
+    plt.figure()
+    i = 0
+    colors = ['b', 'k', 'r', 'g']
+    for name, err in errorsDict.items():
+        plt.plot(err.numpy(), color=colors[i])
+        i += 1
+    plt.legend(errorsDict.keys())
+    plt.show()
+
+
+def testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious):
+    errorsDict = dict()
+    for aggregator in aggregators:
+        name = aggregator.__name__.replace("Aggregator", "")
+        print("TRAINING PRIVACY PRESERVING {}...".format(name))
+        errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious, privacyPreserving=True)
+
+    plt.figure()
+    i = 0
+    colors = ['b', 'k', 'r', 'g']
+    for name, err in errorsDict.items():
+        plt.plot(err.numpy(), color=colors[i])
+        i += 1
+    plt.legend(errorsDict.keys())
+    plt.show()
+
+
+# noByzClientMNISTExperiment()
+# byzClientMNISTExperiment()
+privacyPreservingNoByzClientMNISTExperiment()
