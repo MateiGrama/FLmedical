@@ -75,6 +75,18 @@ class Client:
                 err, pred = self._trainClassifier(x, y)
         return err, pred
 
+    # Function used by aggregators to retrieve the model from the client
+    def getModel(self, differentialPrivacy=False):
+        if self.byz:
+            # Malicious model update
+            # print("Malicous update for user ",u.id)
+            self.manipulateModel()
+
+        if differentialPrivacy:
+            self.privacyPreserve()
+
+        return self.model
+
     # Function to manipulate the model for byzantine adversaries
     def manipulateModel(self, alpha=20):
         params = self.model.named_parameters()
@@ -83,15 +95,12 @@ class Client:
             param.data.copy_(param.data + noise)
 
     # Procedure for implementing differential privacy
-    def privacyPreserve(self, eps1=0.001, eps3=0.01, clipValue=0.001, releaseProportion=0.1):
+    def privacyPreserve(self, eps1=0.001, eps3=0.01, clipValue=0.0001, releaseProportion=0.4, needClip=True):
         print("Privacy preserving for client{} in process..".format(self.id))
 
         gamma = clipValue  # gradient clipping value
         s = 2 * gamma  # sensitivity
         Q = releaseProportion  # proportion to release
-
-        paramArray = [abs(p.data) for p in nn.utils.parameters_to_vector(self.model.parameters())]
-        tau = percentile(paramArray, Q * 100)
 
         paramNo = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         shareParams = Q * paramNo
@@ -101,9 +110,12 @@ class Client:
         e3 = eps3  # answer
         e2 = e1 * ((2 * shareParams * s) ** (2 / 3))  # threshold
 
+        paramArray = [abs(p.data) for p in nn.utils.parameters_to_vector(self.model.parameters())]
+        tau = percentile(paramArray, Q * 100)
+        noisyThreshold = laplace.rvs(scale=(s / e2)) + tau
+
         params = dict(self.model.named_parameters())
         releasedParams = dict()
-
         for name, param in params.items():
             # Normalise by iterations
             normalised = param.data / (self.epochs * self.n)
@@ -113,22 +125,6 @@ class Client:
             paramCopy = torch.clone(param.data)
             paramCopy[:] = 0
             releasedParams[name] = paramCopy
-
-        noisyThreshold = laplace.rvs(scale=(s / e2)) + tau
-        answerNoise = laplace.rvs(scale=(shareParams * s / e3))
-        queryNoise = laplace.rvs(scale=(2 * shareParams * s / e1))
-
-        # print("noisyThreshold {}\n"
-        #       "answerNoise {}\n"
-        #       "queryNoise {}\n"
-        #       "paramNo {}\n"
-        #       "shareParams {}\n"
-        #       "tau {}\n"
-        #       "e1 {}\n"
-        #       "e2 {}\n"
-        #       "e3 {}\n"
-        #       "".format(noisyThreshold, answerNoise, queryNoise, paramNo, shareParams, tau, e1, e2, e3))
-        # firstPrint = True
 
         releaseParamsCount = 0
         while releaseParamsCount < shareParams:
@@ -141,20 +137,21 @@ class Client:
             # proceed to check if above noisy threshold
             if not releasedParams[paramName][index]:
                 param = params[paramName].data[index]
-                # print("Param: {} {} Val: {}".format(paramName, index, param))
-                noisyQuery = abs(clip(param, -gamma, gamma)) + queryNoise
-
-                # print("comparing query: {} with threshold: {}".format(noisyQuery, noisyThreshold))
+                queryNoise = laplace.rvs(scale=(2 * shareParams * s / e1))
+                if needClip:
+                    noisyQuery = abs(clip(param, -gamma, gamma)) + queryNoise
+                else:
+                    noisyQuery = abs(param) + queryNoise
 
                 if noisyQuery >= noisyThreshold:
-                    noisyAnswer = clip(param + answerNoise, -gamma, gamma)
+                    answerNoise = laplace.rvs(scale=(shareParams * s / e3))
+                    if needClip:
+                        noisyAnswer = clip(param + answerNoise, -gamma, gamma)
+                    else:
+                        noisyAnswer = param + answerNoise
+
                     releasedParams[paramName][index] = noisyAnswer
                     releaseParamsCount += 1
-
-                    # if firstPrint:
-                    #     print("Client {} selected param to be released. "
-                    #           "Hurray.".format(self.id))
-                    #     firstPrint = False
 
         # Denormalise and update client model
         for name, param in params.items():

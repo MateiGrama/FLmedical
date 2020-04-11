@@ -22,19 +22,20 @@ class Aggregator():
                         "specific to the aggregation strategy.")
 
     def shareModelAndTrainOnClients(self):
-        # Share model with the users
         for client in self.clients:
             broadcastModel = copy.deepcopy(self.model).to(self.device)
             client.updateModel(broadcastModel)
             error, pred = client.trainModel()
 
-            if client.byz:
-                # Malicious model update
-                # print("Malicous update for user ",u.id)
-                client.manipulateModel()
-
-            if self.differentialPrivacy:
-                client.privacyPreserve()
+    def retrieveClientModelsDict(self):
+        models = dict()
+        for client in self.clients:
+            # If client blocked return an the unchanged version of the model
+            if not client.blocked:
+                models[client] = client.getModel(self.differentialPrivacy)
+            else:
+                models[client] = client.model
+        return models
 
     def test(self, xTest, yTest):
         # Compute test accuracy
@@ -74,11 +75,11 @@ class FAAggregator(Aggregator):
         for r in range(self.rounds):
             print("Round... ", r)
             self.shareModelAndTrainOnClients()
-
+            models = self.retrieveClientModelsDict()
             # Merge models
             comb = 0.0
             for client in self.clients:
-                self.mergeModels(client.model, self.model, client.p, comb)
+                self.mergeModels(models[client], self.model, client.p, comb)
                 comb = 1.0
 
             roundsError[r] = self.test(xTest, yTest)
@@ -107,13 +108,14 @@ class COMEDAggregator(Aggregator):
 
     def medianModels(self):
         client1 = self.clients[0]
-        model = client1.model
+        models = self.retrieveClientModelsDict()
+        model = models[client1]
         modelCopy = copy.deepcopy(model)
         params = model.named_parameters()
         for name1, param1 in params:
             m = []
             for client2 in self.clients:
-                params2 = client2.model.named_parameters()
+                params2 = models[client2].named_parameters()
                 dictParams2 = dict(params2)
                 m.append(dictParams2[name1].data.view(-1).to("cpu").numpy())
                 # print("Size: ", dictParams2[name1].data.size())
@@ -145,12 +147,13 @@ class MKRUMAggregator(Aggregator):
 
             # Compute distances for all users
             scores = torch.zeros(userNo)
+            models = self.retrieveClientModelsDict()
             for client in self.clients:
                 distances = torch.zeros((userNo, userNo))
                 for client2 in self.clients:
                     if client.id != client2.id:
-                        distance = self.computeModelDistance(client.model.to(self.device),
-                                                             client2.model.to(self.device))
+                        distance = self.computeModelDistance(models[client].to(self.device),
+                                                             models[client2].to(self.device))
                         distances[client.id - 1][client2.id - 1] = distance
                 dd = distances[client.id - 1][:].sort()[0]
                 dd = dd.cumsum(0)
@@ -163,7 +166,7 @@ class MKRUMAggregator(Aggregator):
             comb = 0.0
             for client in self.clients:
                 if client.id in selected_users:
-                    self.mergeModels(client.model, self.model, 1 / mk, comb)
+                    self.mergeModels(models[client], self.model, 1 / mk, comb)
                     comb = 1.0
 
             roundsError[r] = self.test(xTest, yTest)
@@ -193,11 +196,11 @@ class AFAAggregator(Aggregator):
     def trainAndTest(self, xTest, yTest):
         # List of malicious users blocked
         maliciousBlocked = []
-        # List with the iteration where a malicious user was bloecked
+        # List with the iteration where a malicious user was blocked
         maliciousBlockedIt = []
         # List of benign users blocked
         benignBlocked = []
-        # List with the iteration where a benign user was bloecked
+        # List with the iteration where a benign user was blocked
         benignBlockedIt = []
 
         roundsError = torch.zeros(self.rounds)
@@ -210,36 +213,32 @@ class AFAAggregator(Aggregator):
                 client.updateModel(broadcastModel)
                 if not client.blocked:
                     error, pred = client.trainModel()
-                    if client.byz:
-                        # Malicious model
-                        client.manipulateModel()
 
-                    if self.differentialPrivacy:
-                        client.privacyPreserve()
+            models = self.retrieveClientModelsDict()
 
             badCount = 2
             slack = 2
             while badCount != 0:
                 pT_epoch = 0.0
                 for client in self.clients:
-                    if self.blockedOrBadUpdate(client):
+                    if self.notBlockedNorBadUpdate(client):
                         client.pEpoch = client.n * client.score
                         pT_epoch = pT_epoch + client.pEpoch
 
                 for client in self.clients:
-                    if self.blockedOrBadUpdate(client):
+                    if self.notBlockedNorBadUpdate(client):
                         client.pEpoch = client.pEpoch / pT_epoch
 
                 comb = 0.0
                 for client in self.clients:
-                    if self.blockedOrBadUpdate(client):
-                        self.mergeModels(client.model, self.model, client.pEpoch, comb)
+                    if self.notBlockedNorBadUpdate(client):
+                        self.mergeModels(models[client], self.model, client.pEpoch, comb)
                         comb = 1.0
 
                 sim = []
                 for client in self.clients:
-                    if self.blockedOrBadUpdate(client):
-                        client.sim = self.modelSimilarity(self.model, client.model)
+                    if self.notBlockedNorBadUpdate(client):
+                        client.sim = self.modelSimilarity(self.model, models[client])
                         sim.append(np.asarray(client.sim.to("cpu")))
                         # print("Similarity user ", u.id, ": ", u.sim)
 
@@ -299,18 +298,18 @@ class AFAAggregator(Aggregator):
             # Update model with the updated scores
             pT_epoch = 0.0
             for client in self.clients:
-                if self.blockedOrBadUpdate(client):
+                if self.notBlockedNorBadUpdate(client):
                     client.pEpoch = client.n * client.score
                     pT_epoch = pT_epoch + client.pEpoch
 
             for client in self.clients:
-                if self.blockedOrBadUpdate(client):
+                if self.notBlockedNorBadUpdate(client):
                     client.pEpoch = client.pEpoch / pT_epoch
 
             comb = 0.0
             for client in self.clients:
-                if self.blockedOrBadUpdate(client):
-                    self.mergeModels(client.model, self.model, client.pEpoch, comb)
+                if self.notBlockedNorBadUpdate(client):
+                    self.mergeModels(models[client], self.model, client.pEpoch, comb)
                     comb = 1.0
 
             # Reset badUpdate variable
@@ -361,8 +360,9 @@ class AFAAggregator(Aggregator):
         client.score = client.alpha / client.beta
 
     @staticmethod
-    def blockedOrBadUpdate(client):
+    def notBlockedNorBadUpdate(client):
         return client.blocked == False | client.badUpdate == False
 
 
 aggregators = Aggregator.__subclasses__()
+aggregators = [AFAAggregator]

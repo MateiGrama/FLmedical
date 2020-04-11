@@ -96,11 +96,27 @@ def privacyPreservingNoByzClientMNISTExperiment():
     testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious)
 
 
+def privacyPreservingAndVanillaNoByzClientMNIST():
+    perc_users = torch.tensor([0.2, 0.10, 0.15, 0.15, 0.15, 0.15, 0.1])
+    labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    faulty = []
+    malicious = []
+    tesBothAggregators(perc_users, labels, faulty, malicious)
+
+
 def privacyPreservingByzClientMNISTExperiment():
     perc_users = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1])
     labels = torch.tensor([0, 2, 5, 8])
     faulty = [2, 6]
     malicious = [1]
+    testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious)
+
+
+def privacyPreservingFewClientsMNISTExperiment():
+    perc_users = torch.tensor([0.3, 0.25, 0.45])
+    labels = torch.tensor([0, 1, 2, 3, 4])
+    faulty = []
+    malicious = []
     testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious)
 
 
@@ -138,6 +154,31 @@ def testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious):
     plt.show()
 
 
+def tesBothAggregators(perc_users, labels, faulty, malicious):
+    errorsDict = dict()
+    for aggregator in aggregators:
+        name = aggregator.__name__.replace("Aggregator", "")
+
+        print("TRAINING VANILLA {}...".format(name))
+        errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious, privacyPreserving=False)
+
+        name += " + DP"
+        print("TRAINING PRIVACY PRESERVING {}...".format(name))
+        errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious, privacyPreserving=True)
+
+    plt.figure()
+    i = 0
+    colors = ['b', 'g', 'c', 'm', 'y', 'k', 'r']
+    for name, err in errorsDict.items():
+        plt.plot(err.numpy(), color=colors[i])
+        i += 1
+    plt.legend(errorsDict.keys())
+    plt.show()
+
+
 # noByzClientMNISTExperiment()
-# byzClientMNISTExperiment()
-privacyPreservingNoByzClientMNISTExperiment()
+byzClientMNISTExperiment()
+# privacyPreservingNoByzClientMNISTExperiment()
+# privacyPreservingAndVanillaNoByzClientMNIST()
+
+# privacyPreservingAndVanillaNoByzClientMNIST()
