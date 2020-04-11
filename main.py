@@ -10,7 +10,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 classifier = classifierMNIST.Classifier
 
 # TRAINING PARAMETERS
-rounds = 2  # TOTAL NUMBER OF TRAINING ROUNDS
+rounds = 20  # TOTAL NUMBER OF TRAINING ROUNDS
 epochs = 10  # NUMBER OF EPOCHS RUN IN EACH CLIENT BEFORE SENDING BACK THE MODEL UPDATE
 batch_size = 200  # BATCH SIZE
 

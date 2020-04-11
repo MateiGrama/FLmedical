@@ -1,3 +1,4 @@
+import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -82,10 +83,11 @@ class Client:
             param.data.copy_(param.data + noise)
 
     # Procedure for implementing differential privacy
-    def privacyPreserve(self, eps1=0.001, eps3=0.001, clipValue=0.001, releaseProportion=0.1):
+    def privacyPreserve(self, eps1=0.001, eps3=0.01, clipValue=0.001, releaseProportion=0.1):
+        print("Privacy preserving for client{} in process..".format(self.id))
 
         gamma = clipValue  # gradient clipping value
-        s = 2 * gamma      # sensitivity
+        s = 2 * gamma  # sensitivity
         Q = releaseProportion  # proportion to release
 
         paramArray = [abs(p.data) for p in nn.utils.parameters_to_vector(self.model.parameters())]
@@ -95,42 +97,70 @@ class Client:
         shareParams = Q * paramNo
 
         # Privacy budgets for
-        e1 = eps1                                 # gradient query
-        e2 = e1 * (2 * shareParams * s) ** (2/3)  # threshold
-        e3 = eps3                                 # answer
+        e1 = eps1  # gradient query
+        e3 = eps3  # answer
+        e2 = e1 * ((2 * shareParams * s) ** (2 / 3))  # threshold
 
-        noisyThreshold = laplace(s / e2) + tau
-        queryThreshold = laplace(2 * shareParams * s / e1)
-        answerNoise    = laplace(shareParams * s / e3)
+        params = dict(self.model.named_parameters())
+        releasedParams = dict()
 
-        # Normalise by iterations
-        params = self.model.named_parameters()
-        for _, param in params:
+        for name, param in params.items():
+            # Normalise by iterations
             normalised = param.data / (self.epochs * self.n)
             param.data.copy_(normalised)
 
-        releaseParams = dict()
-        while len(releaseParams) < shareParams:
+            # Initialize parameter accumulator
+            paramCopy = torch.clone(param.data)
+            paramCopy[:] = 0
+            releasedParams[name] = paramCopy
+
+        noisyThreshold = laplace.rvs(scale=(s / e2)) + tau
+        answerNoise = laplace.rvs(scale=(shareParams * s / e3))
+        queryNoise = laplace.rvs(scale=(2 * shareParams * s / e1))
+
+        # print("noisyThreshold {}\n"
+        #       "answerNoise {}\n"
+        #       "queryNoise {}\n"
+        #       "paramNo {}\n"
+        #       "shareParams {}\n"
+        #       "tau {}\n"
+        #       "e1 {}\n"
+        #       "e2 {}\n"
+        #       "e3 {}\n"
+        #       "".format(noisyThreshold, answerNoise, queryNoise, paramNo, shareParams, tau, e1, e2, e3))
+        # firstPrint = True
+
+        releaseParamsCount = 0
+        while releaseParamsCount < shareParams:
             #  Randomly draw a gradient component
-            unreleasedNames = set(params.keys()).difference(releaseParams.keys())
-            paramName = unreleasedNames.pop()
+            paramName = random.choice(list(params.keys()))
+            paramSize = torch.tensor(params[paramName].size())
+            index = tuple((torch.rand(paramSize.size()) * (paramSize - 1)).to(torch.long))
 
-            if abs(clip(params[paramName].data, -gamma, gamma)) + queryThreshold >= noisyThreshold:
-                noisyAnswer = clip(params[paramName].data + answerNoise, -gamma, gamma)
-                releaseParams[paramName] = noisyAnswer
+            # If not already selected for realised (i.e. is not 0 in the accumulator params)
+            # proceed to check if above noisy threshold
+            if not releasedParams[paramName][index]:
+                param = params[paramName].data[index]
+                # print("Param: {} {} Val: {}".format(paramName, index, param))
+                noisyQuery = abs(clip(param, -gamma, gamma)) + queryNoise
 
-        # Denormalise
-        for _, param in params:
-            normalised = param.data * (self.epochs * self.n)
-            param.data.copy_(normalised)
+                # print("comparing query: {} with threshold: {}".format(noisyQuery, noisyThreshold))
 
-# Issues:
-#   while loop may loop forever
-#   what is tau
-#   0ing not released parameters
-#   Nlocal of the aggregation algorithm: epochs or data
+                if noisyQuery >= noisyThreshold:
+                    noisyAnswer = clip(param + answerNoise, -gamma, gamma)
+                    releasedParams[paramName][index] = noisyAnswer
+                    releaseParamsCount += 1
 
+                    # if firstPrint:
+                    #     print("Client {} selected param to be released. "
+                    #           "Hurray.".format(self.id))
+                    #     firstPrint = False
+
+        # Denormalise and update client model
+        for name, param in params.items():
+            denormalised = releasedParams[name].data * (self.epochs * self.n)
+            param.data.copy_(denormalised)
+        print("Privacy preserving for client{} in done.".format(self.id))
 
 # In the future:
 # different number of epochs for different clients
-

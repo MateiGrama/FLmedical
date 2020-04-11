@@ -5,18 +5,13 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 import syft as sy
 from typing import List
-from numpy import clip
+import numpy as np
 
+a = torch.tensor([[1, 2], [1, 2]])
+a[0][0] = 0
+a[1][1] = 0
 
-class a:
-    def b(self):
-        return 1
-
-
-a = dict([(1, 2), (3, 2)])
-b = dict([(1, 2), (4, 2)])
-
-print(list(set(a.keys()).difference(b.keys()))[0])
+print(list(a.size()))
 
 raise Exception("gata")
 
