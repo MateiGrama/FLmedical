@@ -1,3 +1,4 @@
+import copy
 import random
 import torch
 import torch.nn as nn
@@ -24,6 +25,10 @@ class Client:
         self.byz = byzantine  # Boolean indicating whether the user is faulty or not
         self.flip = flip  # Boolean indicating whether the user is malicious or not (label flipping attack)
 
+        # Used for computing ∆W, i.e. the change in model before
+        # and after client local training, when DP is used
+        self.untrainedModel = copy.deepcopy(model).to(self.device) if model else False
+
         self.opt = None
         self.sim = None
         self.loss = None
@@ -46,6 +51,7 @@ class Client:
         self.opt = optim.SGD(self.model.parameters(), lr=self.learningRate, momentum=self.momentum)
         # u.opt = optim.Adam(u.model.parameters(), lr=0.001)
         self.loss = nn.CrossEntropyLoss()
+        self.untrainedModel = copy.deepcopy(model).to(self.device)
 
     # Function to train the classifier
     def _trainClassifier(self, x, y):
@@ -76,10 +82,10 @@ class Client:
         return err, pred
 
     # Function used by aggregators to retrieve the model from the client
-    def getModel(self, differentialPrivacy=False):
+    def retrieveModel(self, differentialPrivacy=False):
         if self.byz:
             # Malicious model update
-            # print("Malicous update for user ",u.id)
+            # print("Malicious update for user ",u.id)
             self.manipulateModel()
 
         if differentialPrivacy:
@@ -95,13 +101,15 @@ class Client:
             param.data.copy_(param.data + noise)
 
     # Procedure for implementing differential privacy
-    def privacyPreserve(self, eps1=0.001, eps3=0.01, clipValue=0.0001, releaseProportion=0.4, needClip=True):
+    def privacyPreserve(self, eps1=0.01, eps3=0.1, clipValue=0.001, releaseProportion=0.1,
+                        needClip=True, needNormalization=False):
         print("Privacy preserving for client{} in process..".format(self.id))
 
         gamma = clipValue  # gradient clipping value
         s = 2 * gamma  # sensitivity
         Q = releaseProportion  # proportion to release
 
+        norm = self.n * self.epochs if needNormalization else 1
         paramNo = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         shareParams = Q * paramNo
 
@@ -110,53 +118,87 @@ class Client:
         e3 = eps3  # answer
         e2 = e1 * ((2 * shareParams * s) ** (2 / 3))  # threshold
 
-        paramArray = [abs(p.data) for p in nn.utils.parameters_to_vector(self.model.parameters())]
-        tau = percentile(paramArray, Q * 100)
+        paramTuples = zip(nn.utils.parameters_to_vector(self.model.parameters()),
+                          nn.utils.parameters_to_vector(self.untrainedModel.parameters()))
+        paramChangesArr = [abs(param.data - untrainedParam.data) for param, untrainedParam in paramTuples]
+
+        tau = percentile(paramChangesArr, Q * 100)
         noisyThreshold = laplace.rvs(scale=(s / e2)) + tau
 
         params = dict(self.model.named_parameters())
+        untrainedParams = dict(self.untrainedModel.named_parameters())
+        changeOfParams = dict()
         releasedParams = dict()
-        for name, param in params.items():
-            # Normalise by iterations
-            normalised = param.data / (self.epochs * self.n)
-            param.data.copy_(normalised)
 
-            # Initialize parameter accumulator
-            paramCopy = torch.clone(param.data)
-            paramCopy[:] = 0
-            releasedParams[name] = paramCopy
+        for name, param in params.items():
+            # Compute params change normalised by iterations: ∆W ← ∆W/N_local
+            paramChange = param.data - untrainedParams[name].data
+            normalised = paramChange / norm
+            changeOfParams[name] = normalised
+
+            # Initialize release parameters accumulator
+            releasedParams[name] = torch.clone(untrainedParams[name].data)
 
         releaseParamsCount = 0
         while releaseParamsCount < shareParams:
-            #  Randomly draw a gradient component
+            #  Randomly draw a gradient component by selecting
+            #  a random param and an random index of the param
             paramName = random.choice(list(params.keys()))
             paramSize = torch.tensor(params[paramName].size())
             index = tuple((torch.rand(paramSize.size()) * (paramSize - 1)).to(torch.long))
 
-            # If not already selected for realised (i.e. is not 0 in the accumulator params)
-            # proceed to check if above noisy threshold
-            if not releasedParams[paramName][index]:
-                param = params[paramName].data[index]
+            # If not already selected for realise (i.e. value of accumulator param still equal
+            # to the aggregator broadcast model) proceed to check if above noisy threshold
+            paramNotReleasedYet = (releasedParams[paramName][index] == untrainedParams[paramName].data[index])
+            if paramNotReleasedYet:
+                paramChange = changeOfParams[paramName][index]
                 queryNoise = laplace.rvs(scale=(2 * shareParams * s / e1))
                 if needClip:
-                    noisyQuery = abs(clip(param, -gamma, gamma)) + queryNoise
+                    noisyQuery = abs(clip(paramChange, -gamma, gamma)) + queryNoise
                 else:
-                    noisyQuery = abs(param) + queryNoise
+                    noisyQuery = abs(paramChange) + queryNoise
 
                 if noisyQuery >= noisyThreshold:
                     answerNoise = laplace.rvs(scale=(shareParams * s / e3))
                     if needClip:
-                        noisyAnswer = clip(param + answerNoise, -gamma, gamma)
+                        noisyChange = clip(paramChange + answerNoise, -gamma, gamma)
                     else:
-                        noisyAnswer = param + answerNoise
+                        noisyChange = paramChange + answerNoise
 
-                    releasedParams[paramName][index] = noisyAnswer
+                    denormalisedChange = noisyChange * norm
+                    modelNoisyParam = denormalisedChange + untrainedParams[paramName].data[index]
+                    releasedParams[paramName][index] = modelNoisyParam
                     releaseParamsCount += 1
 
-        # Denormalise and update client model
+                    if releaseParamsCount < 5:
+                        print("Agg val: {}\t"
+                              "Client model: {}\t"
+                              "Release: {}\t"
+                              "NoisyThreshold: {}\t"
+                              "Query Noise: {}\t"
+                              "Answer Noise: {}\t"
+                              "e1: {}\t"
+                              "e2: {}\t"
+                              "e3: {}\t"
+                              "shareParams: {}\t"
+                              "paramNo: {}\t"
+                              "".format(untrainedParams[paramName].data[index],
+                                        params[paramName].data[index],
+                                        releasedParams[paramName].data[index],
+                                        round(noisyThreshold, 3),
+                                        round(queryNoise, 3),
+                                        round(answerNoise, 3),
+                                        round(e1, 3),
+                                        round(e2, 3),
+                                        round(e3, 3),
+                                        round(shareParams, 3),
+                                        round(paramNo, 3),
+                                        ))
+
+        # Update client model
         for name, param in params.items():
-            denormalised = releasedParams[name].data * (self.epochs * self.n)
-            param.data.copy_(denormalised)
+            param.data.copy_(releasedParams[name].data)
+
         print("Privacy preserving for client{} in done.".format(self.id))
 
 # In the future:

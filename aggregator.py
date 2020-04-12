@@ -32,7 +32,7 @@ class Aggregator():
         for client in self.clients:
             # If client blocked return an the unchanged version of the model
             if not client.blocked:
-                models[client] = client.getModel(self.differentialPrivacy)
+                models[client] = client.retrieveModel(self.differentialPrivacy)
             else:
                 models[client] = client.model
         return models
