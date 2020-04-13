@@ -12,7 +12,7 @@ classifier = classifierMNIST.Classifier
 # TRAINING PARAMETERS
 rounds = 20  # TOTAL NUMBER OF TRAINING ROUNDS
 epochs = 10  # NUMBER OF EPOCHS RUN IN EACH CLIENT BEFORE SENDING BACK THE MODEL UPDATE
-batch_size = 30  # BATCH SIZE
+batch_size = 200  # BATCH SIZE
 
 
 def trainOnMNIST(aggregator, perc_users, labels, faulty, flipping, privacyPreserving=False):
@@ -23,7 +23,8 @@ def trainOnMNIST(aggregator, perc_users, labels, faulty, flipping, privacyPreser
 
     # CREATE MODEL
     model = classifier().to(device)
-    aggregator = aggregator(clients, model, rounds, device, privacyPreserving)
+    aggregator = aggregator(clients, model, rounds, device,
+                            useDifferentialPrivacy=privacyPreserving)
     return aggregator.trainAndTest(xTest, yTest)
 
 
@@ -114,25 +115,7 @@ def privacyPreservingByzClientMNISTExperiment():
 
 def privacyPreservingFewClientsMNISTExperiment():
     perc_users = torch.tensor([0.3, 0.25, 0.45])
-    labels = torch.tensor([0, 1])
-    faulty = []
-    malicious = []
-    testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious)
-
-
-def privacyPreservingManyClientsMNISTExperiment():
-    # 90 clients
-    perc_users = torch.tensor([0.2, 0.10, 0.15, 0.15, 0.15, 0.15, 0.1, 0.2, 0.10, 0.15,
-                               0.15, 0.15, 0.15, 0.1, 0.2, 0.10, 0.15, 0.15, 0.15, 0.15,
-                               0.15, 0.15, 0.15, 0.1, 0.2, 0.10, 0.15, 0.15, 0.15, 0.15,
-                               0.15, 0.15, 0.15, 0.1, 0.2, 0.10, 0.15, 0.15, 0.15, 0.15,
-                               0.15, 0.15, 0.15, 0.1, 0.2, 0.10, 0.15, 0.15, 0.15, 0.15,
-                               0.15, 0.15, 0.15, 0.1, 0.2, 0.10, 0.15, 0.15, 0.15, 0.15,
-                               0.15, 0.15, 0.15, 0.1, 0.2, 0.10, 0.15, 0.15, 0.15, 0.15,
-                               0.15, 0.15, 0.15, 0.1, 0.2, 0.10, 0.15, 0.15, 0.15, 0.15,
-                               0.15, 0.15, 0.15, 0.1, 0.2, 0.10, 0.15, 0.15, 0.15, 0.15])
-
-    labels = torch.tensor([0, 1, 3, 4, 5, 6, 7, 8, 9])
+    labels = torch.tensor([0, 1, 2, 3, 4])
     faulty = []
     malicious = []
     testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious)
@@ -178,11 +161,13 @@ def tesBothAggregators(perc_users, labels, faulty, malicious):
         name = aggregator.__name__.replace("Aggregator", "")
 
         print("TRAINING VANILLA {}...".format(name))
-        errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious, privacyPreserving=False)
+        errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious,
+                                        privacyPreserving=False)
 
         name += " + DP"
         print("TRAINING PRIVACY PRESERVING {}...".format(name))
-        errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious, privacyPreserving=True)
+        errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious,
+                                        privacyPreserving=True)
 
     plt.figure()
     i = 0
@@ -196,8 +181,7 @@ def tesBothAggregators(perc_users, labels, faulty, malicious):
 
 # noByzClientMNISTExperiment()
 # byzClientMNISTExperiment()
-# privacyPreservingNoByzClientMNISTExperiment()
+privacyPreservingNoByzClientMNISTExperiment()
 # privacyPreservingAndVanillaNoByzClientMNIST()
+
 # privacyPreservingAndVanillaNoByzClientMNIST()
-# privacyPreservingFewClientsMNISTExperiment()
-privacyPreservingManyClientsMNISTExperiment()

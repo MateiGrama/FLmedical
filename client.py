@@ -12,7 +12,7 @@ class Client:
     """ An internal representation of a client """
 
     def __init__(self, model, epochs, batchSize, x, y, p, idx, byzantine, flip, device,
-                 alpha=3, beta=3):
+                 alpha=3.0, beta=3.0):
         self.name = "client" + str(idx)
         self.device = device
 
@@ -25,7 +25,7 @@ class Client:
         self.byz = byzantine  # Boolean indicating whether the user is faulty or not
         self.flip = flip  # Boolean indicating whether the user is malicious or not (label flipping attack)
 
-        # Used for computing ∆W, i.e. the change in model before
+        # Used for computing dW, i.e. the change in model before
         # and after client local training, when DP is used
         self.untrainedModel = copy.deepcopy(model).to(self.device) if model else False
 
@@ -53,20 +53,6 @@ class Client:
         self.loss = nn.CrossEntropyLoss()
         self.untrainedModel = copy.deepcopy(model).to(self.device)
 
-    # Function to train the classifier
-    def _trainClassifier(self, x, y):
-        x.to(self.device)
-        y.to(self.device)
-        # Reset gradients
-        self.opt.zero_grad()
-        pred = self.model(x)
-        pred.to(self.device)
-        err = self.loss(pred, y).to(self.device)
-        err.backward()
-        # Update optimizer
-        self.opt.step()
-        return err, pred
-
     # Function to train the model for a specific user
     def trainModel(self):
         for i in range(self.epochs):
@@ -81,28 +67,42 @@ class Client:
                 err, pred = self._trainClassifier(x, y)
         return err, pred
 
+    # Function to train the classifier
+    def _trainClassifier(self, x, y):
+        x.to(self.device)
+        y.to(self.device)
+        # Reset gradients
+        self.opt.zero_grad()
+        pred = self.model(x)
+        pred.to(self.device)
+        err = self.loss(pred, y).to(self.device)
+        err.backward()
+        # Update optimizer
+        self.opt.step()
+        return err, pred
+
     # Function used by aggregators to retrieve the model from the client
     def retrieveModel(self, differentialPrivacy=False):
         if self.byz:
             # Malicious model update
-            # print("Malicious update for user ",u.id)
-            self.manipulateModel()
+            # print("Malicous update for user ",u.id)
+            self.__manipulateModel()
 
         if differentialPrivacy:
-            self.privacyPreserve()
+            self.__privacyPreserve()
 
         return self.model
 
     # Function to manipulate the model for byzantine adversaries
-    def manipulateModel(self, alpha=20):
+    def __manipulateModel(self, alpha=20):
         params = self.model.named_parameters()
         for name, param in params:
             noise = alpha * torch.randn(param.data.size()).to(self.device)
             param.data.copy_(param.data + noise)
 
     # Procedure for implementing differential privacy
-    def privacyPreserve(self, eps1=0.01, eps3=0.1, clipValue=0.001, releaseProportion=0.1,
-                        needClip=True, needNormalization=False):
+    def __privacyPreserve(self, eps1=0.01, eps3=0.1, clipValue=0.001, releaseProportion=0.1,
+                          needClip=True, needNormalization=False):
         print("Privacy preserving for client{} in process..".format(self.id))
 
         gamma = clipValue  # gradient clipping value
@@ -130,14 +130,14 @@ class Client:
         changeOfParams = dict()
         releasedParams = dict()
 
-        for name, param in params.items():
-            # Compute params change normalised by iterations: ∆W ← ∆W/N_local
-            paramChange = param.data - untrainedParams[name].data
+        for paramName, param in params.items():
+            # Compute params change normalised by iterations: dW = dW/N_local
+            paramChange = param.data - untrainedParams[paramName].data
             normalised = paramChange / norm
-            changeOfParams[name] = normalised
+            changeOfParams[paramName] = normalised
 
             # Initialize release parameters accumulator
-            releasedParams[name] = torch.clone(untrainedParams[name].data)
+            releasedParams[paramName] = torch.clone(untrainedParams[paramName].data)
 
         releaseParamsCount = 0
         while releaseParamsCount < shareParams:
@@ -196,10 +196,13 @@ class Client:
                                         ))
 
         # Update client model
-        for name, param in params.items():
-            param.data.copy_(releasedParams[name].data)
+        for paramName, param in params.items():
+            param.data.copy_(releasedParams[paramName].data)
 
         print("Privacy preserving for client{} in done.".format(self.id))
+
+    # In the future:
+    # different number of epochs for different clients
 
 # In the future:
 # different number of epochs for different clients

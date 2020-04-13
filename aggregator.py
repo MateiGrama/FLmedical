@@ -1,4 +1,6 @@
 import copy
+from threading import Thread
+
 import torch
 import torch.nn as nn
 import numpy as np
@@ -9,11 +11,14 @@ from sklearn.metrics import confusion_matrix
 
 
 class Aggregator():
-    def __init__(self, clients, model, rounds, device, differentialPrivacy=False):
+    def __init__(self, clients, model, rounds, device,
+                 useAsyncClients=True, useDifferentialPrivacy=False):
         self.model = model
         self.rounds = rounds
         self.clients = clients
-        self.differentialPrivacy = differentialPrivacy
+
+        self.useAsyncClients = useAsyncClients
+        self.useDifferentialPrivacy = useDifferentialPrivacy
 
         self.device = device
 
@@ -21,18 +26,30 @@ class Aggregator():
         raise Exception("Train method should be override by child class, "
                         "specific to the aggregation strategy.")
 
-    def shareModelAndTrainOnClients(self):
-        for client in self.clients:
-            broadcastModel = copy.deepcopy(self.model).to(self.device)
-            client.updateModel(broadcastModel)
-            error, pred = client.trainModel()
+    def _shareModelAndTrainOnClients(self):
+        if self.useAsyncClients:
+            threads = []
+            for client in self.clients:
+                t = Thread(target=(lambda: self.__shareModelAndTrainOnClient(client)))
+                threads.append(t)
+                t.start()
+            for thread in threads:
+                thread.join()
+        else:
+            for client in self.clients:
+                self.__shareModelAndTrainOnClient(client)
 
-    def retrieveClientModelsDict(self):
+    def __shareModelAndTrainOnClient(self, client):
+        broadcastModel = copy.deepcopy(self.model).to(self.device)
+        client.updateModel(broadcastModel)
+        error, pred = client.trainModel()
+
+    def _retrieveClientModelsDict(self):
         models = dict()
         for client in self.clients:
             # If client blocked return an the unchanged version of the model
             if not client.blocked:
-                models[client] = client.retrieveModel(self.differentialPrivacy)
+                models[client] = client.retrieveModel(self.useDifferentialPrivacy)
             else:
                 models[client] = client.model
         return models
@@ -55,7 +72,7 @@ class Aggregator():
 
     # Function to merge the models
     @staticmethod
-    def mergeModels(mOrig, mDest, alphaOrig, alphaDest):
+    def _mergeModels(mOrig, mDest, alphaOrig, alphaDest):
         paramsDest = mDest.named_parameters()
         dictParamsDest = dict(paramsDest)
         paramsOrig = mOrig.named_parameters()
@@ -74,12 +91,12 @@ class FAAggregator(Aggregator):
         roundsError = torch.zeros(self.rounds)
         for r in range(self.rounds):
             print("Round... ", r)
-            self.shareModelAndTrainOnClients()
-            models = self.retrieveClientModelsDict()
+            self._shareModelAndTrainOnClients()
+            models = self._retrieveClientModelsDict()
             # Merge models
             comb = 0.0
             for client in self.clients:
-                self.mergeModels(models[client], self.model, client.p, comb)
+                self._mergeModels(models[client], self.model, client.p, comb)
                 comb = 1.0
 
             roundsError[r] = self.test(xTest, yTest)
@@ -97,18 +114,18 @@ class COMEDAggregator(Aggregator):
         for r in range(self.rounds):
             print("Round... ", r)
 
-            self.shareModelAndTrainOnClients()
+            self._shareModelAndTrainOnClients()
+            models = self._retrieveClientModelsDict()
 
             # Merge models
-            self.model = self.medianModels()
+            self.model = self.__medianModels(models)
 
             roundsError[r] = self.test(xTest, yTest)
 
         return roundsError
 
-    def medianModels(self):
+    def __medianModels(self, models):
         client1 = self.clients[0]
-        models = self.retrieveClientModelsDict()
         model = models[client1]
         modelCopy = copy.deepcopy(model)
         params = model.named_parameters()
@@ -143,17 +160,17 @@ class MKRUMAggregator(Aggregator):
         for r in range(self.rounds):
             print("Round... ", r)
 
-            self.shareModelAndTrainOnClients()
+            self._shareModelAndTrainOnClients()
 
             # Compute distances for all users
             scores = torch.zeros(userNo)
-            models = self.retrieveClientModelsDict()
+            models = self._retrieveClientModelsDict()
             for client in self.clients:
                 distances = torch.zeros((userNo, userNo))
                 for client2 in self.clients:
                     if client.id != client2.id:
-                        distance = self.computeModelDistance(models[client].to(self.device),
-                                                             models[client2].to(self.device))
+                        distance = self.__computeModelDistance(models[client].to(self.device),
+                                                               models[client2].to(self.device))
                         distances[client.id - 1][client2.id - 1] = distance
                 dd = distances[client.id - 1][:].sort()[0]
                 dd = dd.cumsum(0)
@@ -166,14 +183,14 @@ class MKRUMAggregator(Aggregator):
             comb = 0.0
             for client in self.clients:
                 if client.id in selected_users:
-                    self.mergeModels(models[client], self.model, 1 / mk, comb)
+                    self._mergeModels(models[client], self.model, 1 / mk, comb)
                     comb = 1.0
 
             roundsError[r] = self.test(xTest, yTest)
 
         return roundsError
 
-    def computeModelDistance(self, mOrig, mDest):
+    def __computeModelDistance(self, mOrig, mDest):
         paramsDest = mDest.named_parameters()
         dictParamsDest = dict(paramsDest)
         paramsOrig = mOrig.named_parameters()
@@ -214,7 +231,7 @@ class AFAAggregator(Aggregator):
                 if not client.blocked:
                     error, pred = client.trainModel()
 
-            models = self.retrieveClientModelsDict()
+            models = self._retrieveClientModelsDict()
 
             badCount = 2
             slack = 2
@@ -232,13 +249,13 @@ class AFAAggregator(Aggregator):
                 comb = 0.0
                 for client in self.clients:
                     if self.notBlockedNorBadUpdate(client):
-                        self.mergeModels(models[client], self.model, client.pEpoch, comb)
+                        self._mergeModels(models[client], self.model, client.pEpoch, comb)
                         comb = 1.0
 
                 sim = []
                 for client in self.clients:
                     if self.notBlockedNorBadUpdate(client):
-                        client.sim = self.modelSimilarity(self.model, models[client])
+                        client.sim = self.__modelSimilarity(self.model, models[client])
                         sim.append(np.asarray(client.sim.to("cpu")))
                         # print("Similarity user ", u.id, ": ", u.sim)
 
@@ -309,7 +326,7 @@ class AFAAggregator(Aggregator):
             comb = 0.0
             for client in self.clients:
                 if self.notBlockedNorBadUpdate(client):
-                    self.mergeModels(models[client], self.model, client.pEpoch, comb)
+                    self._mergeModels(models[client], self.model, client.pEpoch, comb)
                     comb = 1.0
 
             # Reset badUpdate variable
@@ -321,7 +338,7 @@ class AFAAggregator(Aggregator):
 
         return roundsError
 
-    def modelSimilarity(self, mOrig, mDest):
+    def __modelSimilarity(self, mOrig, mDest):
         cos = nn.CosineSimilarity(0)
 
         d2 = torch.tensor([]).to(self.device)
@@ -365,4 +382,4 @@ class AFAAggregator(Aggregator):
 
 
 aggregators = Aggregator.__subclasses__()
-aggregators = [AFAAggregator]
+aggregators = [FAAggregator]
