@@ -189,7 +189,7 @@ def tesBothAggregators(perc_users, labels, faulty, malicious):
     plt.legend(errorsDict.keys())
     plt.show()
 
-
+print("Experiment started.")
 # noByzClientMNISTExperiment()
 # byzClientMNISTExperiment()
 # privacyPreservingNoByzClientMNISTExperiment()
