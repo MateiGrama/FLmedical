@@ -1,3 +1,4 @@
+import sys
 import copy
 import random
 import torch
@@ -194,6 +195,7 @@ class Client:
                                         round(shareParams, 3),
                                         round(paramNo, 3),
                                         ))
+                        sys.stdout.flush()
 
         # Update client model
         for paramName, param in params.items():
