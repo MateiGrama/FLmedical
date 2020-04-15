@@ -188,16 +188,16 @@ class Client:
                     releaseParamsCount += 1
 
                     if releaseParamsCount < 5:
-                        logPrint("Agg val: {}\t"
-                                 "Client model: {}\t"
-                                 "Release: {}\t"
-                                 "Query Noise: {}\t"
-                                 "Answer Noise: {}\t"
+                        logPrint("Broadcast: {}\t"
+                                 "Trained: {}\t"
+                                 "Released: {}\t"
+                                 "QueryNoise: {}\t"
+                                 "AnswerNoise: {}\t"
                                  "".format(untrainedParams[paramName].data[index],
                                            params[paramName].data[index],
                                            releasedParams[paramName].data[index],
-                                           round(queryNoise, 3),
-                                           round(answerNoise, 3)))
+                                           round(queryNoise, 5),
+                                           round(answerNoise, 5)))
                         sys.stdout.flush()
 
         # Update client model
