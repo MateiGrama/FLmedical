@@ -121,6 +121,17 @@ def privacyPreservingFewClientsMNISTExperiment():
     testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious)
 
 
+def privacyPreserving30ClientsMNISTExperiment():
+    perc_users = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                               ])
+    labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    faulty = []
+    malicious = []
+    testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious)
+
+
 def testAggregators(perc_users, labels, faulty, malicious):
     errorsDict = dict()
     for aggregator in aggregators:
@@ -181,7 +192,9 @@ def tesBothAggregators(perc_users, labels, faulty, malicious):
 
 # noByzClientMNISTExperiment()
 # byzClientMNISTExperiment()
-privacyPreservingNoByzClientMNISTExperiment()
+# privacyPreservingNoByzClientMNISTExperiment()
 # privacyPreservingAndVanillaNoByzClientMNIST()
 
 # privacyPreservingAndVanillaNoByzClientMNIST()
+# privacyPreservingFewClientsMNISTExperiment()
+privacyPreserving30ClientsMNISTExperiment()

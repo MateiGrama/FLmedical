@@ -101,7 +101,7 @@ class Client:
             param.data.copy_(param.data + noise)
 
     # Procedure for implementing differential privacy
-    def __privacyPreserve(self, eps1=0.01, eps3=0.1, clipValue=0.001, releaseProportion=0.1,
+    def __privacyPreserve(self, eps1=1, eps3=1, clipValue=0.0001, releaseProportion=0.1,
                           needClip=True, needNormalization=False):
         print("Privacy preserving for client{} in process..".format(self.id))
 
