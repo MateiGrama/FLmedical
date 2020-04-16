@@ -5,6 +5,7 @@ from aggregator import aggregators
 from dataUtils import loadMNISTdata
 from client import Client
 import classifierMNIST
+from logger import logPrint
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 classifier = classifierMNIST.Classifier
@@ -16,7 +17,7 @@ batch_size = 200  # BATCH SIZE
 
 
 def trainOnMNIST(aggregator, perc_users, labels, faulty, flipping, privacyPreserving=False):
-    print("Loading MNIST...")
+    logPrint("Loading MNIST...")
     training_data, training_labels, xTest, yTest = loadMNISTdata(perc_users, labels)
 
     clients = initClients(perc_users, training_data, training_labels, faulty, flipping)
@@ -33,7 +34,7 @@ def initClients(perc_users, training_data, training_labels, faulty, flipping):
     p0 = 1 / usersNo
     # Seed
     torch.manual_seed(2)
-    print("Creating clients...")
+    logPrint("Creating clients...")
     clients = []
     for i in range(usersNo):
         clients.append(Client(model=False,
@@ -54,16 +55,16 @@ def initClients(perc_users, training_data, training_labels, faulty, flipping):
     # Weight the value of the update of each user according to the number of training data points
     for client in clients:
         client.p = client.xTrain.size(0) / ntr
-        # print("Weight for user ", u.id, ": ", round(u.p,3))
+        # logPrint("Weight for user ", u.id, ": ", round(u.p,3))
 
     # Create malicious (byzantine) users
     for client in clients:
         if client.id in faulty:
             client.byz = True
-            print("User ", client.id, " is faulty.")
+            logPrint("User ", client.id, " is faulty.")
         if client.id in flipping:
             client.flip = True
-            print("User ", client.id, " is malicious.")
+            logPrint("User ", client.id, " is malicious.")
             # Flip labels
             # r = torch.randperm(u.ytr.size(0))
             # u.yTrain = u.yTrain[r]
@@ -136,7 +137,7 @@ def _testAggregators(perc_users, labels, faulty, malicious):
     errorsDict = dict()
     for aggregator in aggregators:
         name = aggregator.__name__.replace("Aggregator", "")
-        print("TRAINING {}...".format(name))
+        logPrint("TRAINING {}...".format(name))
         errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious)
 
     plt.figure()
@@ -153,7 +154,7 @@ def _testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious):
     errorsDict = dict()
     for aggregator in aggregators:
         name = aggregator.__name__.replace("Aggregator", "")
-        print("TRAINING PRIVACY PRESERVING {}...".format(name))
+        logPrint("TRAINING PRIVACY PRESERVING {}...".format(name))
         errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious, privacyPreserving=True)
 
     plt.figure()
@@ -171,12 +172,12 @@ def _testBothAggregators(perc_users, labels, faulty, malicious):
     for aggregator in aggregators:
         name = aggregator.__name__.replace("Aggregator", "")
 
-        print("TRAINING VANILLA {}...".format(name))
+        logPrint("TRAINING VANILLA {}...".format(name))
         errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious,
                                         privacyPreserving=False)
 
         name += " + DP"
-        print("TRAINING PRIVACY PRESERVING {}...".format(name))
+        logPrint("TRAINING PRIVACY PRESERVING {}...".format(name))
         errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious,
                                         privacyPreserving=True)
 
@@ -189,7 +190,7 @@ def _testBothAggregators(perc_users, labels, faulty, malicious):
     plt.legend(errorsDict.keys())
     plt.show()
 
-
+logPrint("Experiment started.")
 # noByzClientMNISTExperiment()
 # byzClientMNISTExperiment()
 # privacyPreservingNoByzClientMNISTExperiment()

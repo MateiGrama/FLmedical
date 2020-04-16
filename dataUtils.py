@@ -41,11 +41,11 @@ def __loadMNISTdata():
     testSet = dset.MNIST('data', train=False, transform=trans, download=True)
 
     # Scale pixel intensities to [-1, 1]
-    x = trainSet.data
+    x = trainSet.train_data
     x = 2 * (x.float() / 255.0) - 1
     # list of 2D images to 1D pixel intensities
     x = x.flatten(1, 2)
-    y = trainSet.targets
+    y = trainSet.train_labels
 
     # Shuffle
     r = torch.randperm(x.size(0))
@@ -53,11 +53,11 @@ def __loadMNISTdata():
     yTrain = y
 
     # Scale pixel intensities to [-1, 1]
-    xTest = testSet.data.clone().detach()
+    xTest = testSet.test_data.clone().detach()
     xTest = 2 * (xTest.float() / 255.0) - 1
     # list of 2D images to 1D pixel intensities
     xTest = xTest.flatten(1, 2)
-    yTest = testSet.targets.clone().detach()
+    yTest = testSet.test_labels.clone().detach()
 
     return xTrain, yTrain, xTest, yTest
 

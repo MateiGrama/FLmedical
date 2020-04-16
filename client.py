@@ -1,3 +1,4 @@
+import sys
 import copy
 import random
 import torch
@@ -6,6 +7,8 @@ import torch.optim as optim
 
 from numpy import clip, percentile
 from scipy.stats import laplace
+
+from logger import logPrint
 
 
 class Client:
@@ -56,7 +59,7 @@ class Client:
     # Function to train the model for a specific user
     def trainModel(self):
         for i in range(self.epochs):
-            # print("Epoch user: ",i)
+            # logPrint("Epoch user: ",i)
             # Shuffle training data
             r = torch.randperm(self.xTrain.size()[0])
             self.xTrain = self.xTrain[r]
@@ -85,7 +88,7 @@ class Client:
     def retrieveModel(self, differentialPrivacy=False):
         if self.byz:
             # Malicious model update
-            # print("Malicous update for user ",u.id)
+            # logPrint("Malicous update for user ",u.id)
             self.__manipulateModel()
 
         if differentialPrivacy:
@@ -101,9 +104,9 @@ class Client:
             param.data.copy_(param.data + noise)
 
     # Procedure for implementing differential privacy
-    def __privacyPreserve(self, eps1=1, eps3=1, clipValue=0.0001, releaseProportion=0.1,
+    def __privacyPreserve(self, eps1=0.001, eps3=1, clipValue=0.0001, releaseProportion=0.1,
                           needClip=True, needNormalization=False):
-        print("Privacy preserving for client{} in process..".format(self.id))
+        logPrint("Privacy preserving for client{} in process..".format(self.id))
 
         gamma = clipValue  # gradient clipping value
         s = 2 * gamma  # sensitivity
@@ -124,6 +127,20 @@ class Client:
 
         tau = percentile(paramChangesArr, Q * 100)
         noisyThreshold = laplace.rvs(scale=(s / e2)) + tau
+
+        logPrint("NoisyThreshold: {}\t"
+                 "e1: {}\t"
+                 "e2: {}\t"
+                 "e3: {}\t"
+                 "shareParams: {}\t"
+                 "paramNo: {}\t"
+                 "".format(round(noisyThreshold, 3),
+                           round(e1, 3),
+                           round(e2, 3),
+                           round(e3, 3),
+                           round(shareParams, 3),
+                           round(paramNo, 3),
+                           ))
 
         params = dict(self.model.named_parameters())
         untrainedParams = dict(self.untrainedModel.named_parameters())
@@ -171,38 +188,23 @@ class Client:
                     releaseParamsCount += 1
 
                     if releaseParamsCount < 5:
-                        print("Agg val: {}\t"
-                              "Client model: {}\t"
-                              "Release: {}\t"
-                              "NoisyThreshold: {}\t"
-                              "Query Noise: {}\t"
-                              "Answer Noise: {}\t"
-                              "e1: {}\t"
-                              "e2: {}\t"
-                              "e3: {}\t"
-                              "shareParams: {}\t"
-                              "paramNo: {}\t"
-                              "".format(untrainedParams[paramName].data[index],
-                                        params[paramName].data[index],
-                                        releasedParams[paramName].data[index],
-                                        round(noisyThreshold, 3),
-                                        round(queryNoise, 3),
-                                        round(answerNoise, 3),
-                                        round(e1, 3),
-                                        round(e2, 3),
-                                        round(e3, 3),
-                                        round(shareParams, 3),
-                                        round(paramNo, 3),
-                                        ))
+                        logPrint("Broadcast: {}\t"
+                                 "Trained: {}\t"
+                                 "Released: {}\t"
+                                 "QueryNoise: {}\t"
+                                 "AnswerNoise: {}\t"
+                                 "".format(untrainedParams[paramName].data[index],
+                                           params[paramName].data[index],
+                                           releasedParams[paramName].data[index],
+                                           round(queryNoise, 5),
+                                           round(answerNoise, 5)))
+                        sys.stdout.flush()
 
         # Update client model
         for paramName, param in params.items():
             param.data.copy_(releasedParams[paramName].data)
 
-        print("Privacy preserving for client{} in done.".format(self.id))
-
-    # In the future:
-    # different number of epochs for different clients
+        logPrint("Privacy preserving for client{} in done.".format(self.id))
 
 # In the future:
 # different number of epochs for different clients
