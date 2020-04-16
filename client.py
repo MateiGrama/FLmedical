@@ -206,8 +206,5 @@ class Client:
 
         logPrint("Privacy preserving for client{} in done.".format(self.id))
 
-    # In the future:
-    # different number of epochs for different clients
-
 # In the future:
 # different number of epochs for different clients
