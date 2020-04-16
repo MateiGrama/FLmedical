@@ -10,7 +10,7 @@ from scipy.stats import beta
 from sklearn.metrics import confusion_matrix
 
 
-class Aggregator():
+class Aggregator:
     def __init__(self, clients, model, rounds, device,
                  useAsyncClients=True, useDifferentialPrivacy=False):
         self.model = model

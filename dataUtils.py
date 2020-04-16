@@ -32,32 +32,6 @@ def loadMNISTdata(percUsers=__defaultClientDataSplitPercentage,
     return training_data, training_labels, xTest, yTest
 
 
-def getSyftMNIST(percUsers=__defaultClientDataSplitPercentage,
-                 labels=__defaultLabelsOfInterest):
-    percUsers = percUsers / percUsers.sum()
-    userNo = percUsers.size(0)
-
-    xTrn, yTrn, xTst, yTst = __loadMNISTdata()
-
-    xTest, xTrain, yTest, yTrain = __filterByLabelAndShuffle(labels, xTrn, xTst, yTrn, yTst)
-
-    # Splitting data to users corresponding to user percentage param
-    ntr_users = (percUsers * xTrain.size(0)).floor().numpy()
-
-    training_data = []
-    training_labels = []
-
-    it = 0
-    for i in range(userNo):
-        x = xTrain[it:it + int(ntr_users[i]), :].clone().detach()
-        y = yTrain[it:it + int(ntr_users[i])].clone().detach()
-        it = it + int(ntr_users[i])
-
-        # create syft client sending them x, y
-
-    return training_data, training_labels, xTest, yTest
-
-
 def __loadMNISTdata():
     trans = transforms.Compose([transforms.ToTensor(),
                                 transforms.Normalize((0.5,), (1.0,))])
@@ -109,69 +83,28 @@ def __filterByLabelAndShuffle(labels, xTrn, xTst, yTrn, yTst):
     return xTest, xTrain, yTest, yTrain
 
 
-# Obsolete - from Luiz original codebase
-def getMNISTdata(perc_users, labels):
-    perc_users = perc_users / perc_users.sum()
+# WIP: postponed until decided to use or not PySyft
+def getSyftMNIST(percUsers=__defaultClientDataSplitPercentage,
+                 labels=__defaultLabelsOfInterest):
+    percUsers = percUsers / percUsers.sum()
+    userNo = percUsers.size(0)
 
-    userNo = perc_users.size(0)
+    xTrn, yTrn, xTst, yTst = __loadMNISTdata()
 
-    trans = transforms.Compose([transforms.ToTensor(),
-                                transforms.Normalize((0.5,), (1.0,))])
-
-    # if not exist, download mnist dataset
-    train_set = dset.MNIST('data', train=True, transform=trans, download=True)
-    test_set = dset.MNIST('data', train=False, transform=trans, download=True)
-
-    # Scale pixel intensities to [-1, 1]
-    x = train_set.data
-    x = 2 * (x.float() / 255.0) - 1
-    # list of 2D images to 1D pixel intensities
-    x = x.flatten(1, 2)
-    y = train_set.targets
-
-    ytr = torch.tensor([], dtype=torch.long)
-    xtr = torch.tensor([])
-
-    # Extract the entries corresponding to the labels passed as param
-    for e in labels:
-        idx = (y == e)
-        xtr = torch.cat((xtr, x[idx, :]), dim=0)
-        ytr = torch.cat((ytr, y[idx]), dim=0)
-
-    ntr = xtr.size(0)
-
-    # Shuffle
-    r = torch.randperm(xtr.size(0))
-    xtr = xtr[r, :]
-    ytr = ytr[r]
+    xTest, xTrain, yTest, yTrain = __filterByLabelAndShuffle(labels, xTrn, xTst, yTrn, yTst)
 
     # Splitting data to users corresponding to user percentage param
-    ntr_users = (perc_users * ntr).floor()
-    ntr_users = ntr_users.numpy()
+    ntr_users = (percUsers * xTrain.size(0)).floor().numpy()
 
     training_data = []
     training_labels = []
 
     it = 0
     for i in range(userNo):
-        x = xtr[it:it + int(ntr_users[i]), :].clone().detach()
-        y = ytr[it:it + int(ntr_users[i])].clone().detach()
-        training_data.append(x)
-        training_labels.append(y)
+        x = xTrain[it:it + int(ntr_users[i]), :].clone().detach()
+        y = yTrain[it:it + int(ntr_users[i])].clone().detach()
         it = it + int(ntr_users[i])
 
-    x2 = test_set.data.clone().detach()
-    x2 = 2 * (x2.float() / 255.0) - 1
-    x2 = x2.flatten(1, 2)
-    y2 = test_set.targets.clone().detach()
+        # create syft client sending them x, y
 
-    ytst = torch.tensor([], dtype=torch.long)
-    xtst = torch.tensor([])
-
-    for e in labels:
-        idx = (y2 == e)
-        xtst = torch.cat((xtst, x2[idx, :]), dim=0)
-        ytst = torch.cat((ytst, y2[idx]), dim=0)
-
-    return training_data, training_labels, xtst, ytst
-
+    return training_data, training_labels, xTest, yTest
