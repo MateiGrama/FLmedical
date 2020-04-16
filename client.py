@@ -105,7 +105,7 @@ class Client:
             param.data.copy_(param.data + noise)
 
     # Procedure for implementing differential privacy
-    def __privacyPreserve(self, eps1=0.001, eps3=1, clipValue=0.0001, releaseProportion=0.1,
+    def __privacyPreserve(self, eps1=100, eps3=100, clipValue=0.1, releaseProportion=0.1,
                           needClip=False, needNormalization=False):
         logPrint("Privacy preserving for client{} in process..".format(self.id))
 
@@ -208,7 +208,7 @@ class Client:
         logPrint("Privacy preserving for client{} in done.".format(self.id))
 
     # Procedure for implementing differential privacy
-    def __optimPrivacyPreserve(self, eps1=0.001, eps3=1, clipValue=0.0001, releaseProportion=0.1,
+    def __optimPrivacyPreserve(self, eps1=100, eps3=100, clipValue=0.1, releaseProportion=0.1,
                                needClip=False, needNormalization=False):
         logPrint("Privacy preserving for client{} in process..".format(self.id))
 
@@ -245,7 +245,7 @@ class Client:
         e2 = e1 * ((2 * shareParamsNo * s) ** (2 / 3))  # threshold
 
         tau = percentile(abs(paramChanges), Q * 100)
-        noisyThreshold = 0  # laplace.rvs(scale=(s / e2)) + tau
+        noisyThreshold = laplace.rvs(scale=(s / e2)) + tau
 
         logPrint("NoisyThreshold: {}\t"
                  "e1: {}\t"
@@ -263,8 +263,8 @@ class Client:
         paramChanges = paramChanges[r]
         paramIndex = paramIndex[r]
 
-        # queryNoise = [laplace.rvs(scale=(2 * shareParams * s / e1)) for _ in range(paramNo)]
-        queryNoise = [0 for _ in range(paramNo)]  # )
+        queryNoise = [laplace.rvs(scale=(2 * shareParamsNo * s / e1)) for _ in range(paramNo)]
+        # queryNoise = [0 for _ in range(paramNo)]  # )
 
         if needClip:
             noisyQuery = abs(clip(paramChanges, -gamma, gamma)) + queryNoise
@@ -275,8 +275,8 @@ class Client:
         releaseChanges = paramChanges[releaseIndex][:shareParamsNo]
         releaseIndex = paramIndex[releaseIndex][:shareParamsNo]
 
-        # answerNoise = [laplace.rvs(scale=(shareParams * s / e3)) for _ in range(shareParams)]
-        answerNoise = [0 for _ in range(shareParamsNo)]  # )
+        answerNoise = [laplace.rvs(scale=(shareParamsNo * s / e3)) for _ in range(shareParamsNo)]
+        # answerNoise = [0 for _ in range(shareParamsNo)]  # )
         if needClip:
             noisyChanges = clip(releaseChanges + answerNoise, -gamma, gamma)
         else:
