@@ -9,6 +9,8 @@ from scipy.stats import beta
 
 from sklearn.metrics import confusion_matrix
 
+from logger import logPrint
+
 
 class Aggregator():
     def __init__(self, clients, model, rounds, device,
@@ -60,7 +62,7 @@ class Aggregator():
         # Confusion matrix and normalized confusion matrix
         mconf = confusion_matrix(yTest.to("cpu"), Ypred.to("cpu"))
         errors = 1 - 1.0 * mconf.diagonal().sum() / xTest.size(0)
-        print("Error Rate: ", round(100.0 * errors, 3), "%")
+        logPrint("Error Rate: ", round(100.0 * errors, 3), "%")
         return errors
 
     # Function for computing predictions
@@ -90,7 +92,7 @@ class FAAggregator(Aggregator):
 
         roundsError = torch.zeros(self.rounds)
         for r in range(self.rounds):
-            print("Round... ", r)
+            logPrint("Round... ", r)
             self._shareModelAndTrainOnClients()
             models = self._retrieveClientModelsDict()
             # Merge models
@@ -112,7 +114,7 @@ class COMEDAggregator(Aggregator):
         roundsError = torch.zeros(self.rounds)
 
         for r in range(self.rounds):
-            print("Round... ", r)
+            logPrint("Round... ", r)
 
             self._shareModelAndTrainOnClients()
             models = self._retrieveClientModelsDict()
@@ -135,12 +137,12 @@ class COMEDAggregator(Aggregator):
                 params2 = models[client2].named_parameters()
                 dictParams2 = dict(params2)
                 m.append(dictParams2[name1].data.view(-1).to("cpu").numpy())
-                # print("Size: ", dictParams2[name1].data.size())
+                # logPrint("Size: ", dictParams2[name1].data.size())
             m = torch.tensor(m)
             med = torch.median(m, dim=0)[0]
             dictParamsm = dict(modelCopy.named_parameters())
             dictParamsm[name1].data.copy_(med.view(dictParamsm[name1].data.size()))
-            # print("Median computed, size: ", med.size())
+            # logPrint("Median computed, size: ", med.size())
         return modelCopy.to(self.device)
 
 
@@ -158,7 +160,7 @@ class MKRUMAggregator(Aggregator):
         roundsError = torch.zeros(self.rounds)
 
         for r in range(self.rounds):
-            print("Round... ", r)
+            logPrint("Round... ", r)
 
             self._shareModelAndTrainOnClients()
 
@@ -178,7 +180,7 @@ class MKRUMAggregator(Aggregator):
 
             _, idx = scores.sort()
             selected_users = idx[:mk - 1] + 1
-            # print("Selected users: ", selected_users)
+            # logPrint("Selected users: ", selected_users)
 
             comb = 0.0
             for client in self.clients:
@@ -202,8 +204,8 @@ class MKRUMAggregator(Aggregator):
                 d2 = torch.cat((d2, param1.data.view(-1)))
                 # d2 = param1.data
                 # sim = cos(d1.view(-1),d2.view(-1))
-                # print(name1,param1.size())
-                # print("Similarity: ",sim)
+                # logPrint(name1,param1.size())
+                # logPrint("Similarity: ",sim)
         sim = torch.norm(d1 - d2, p=2)
         return sim
 
@@ -223,7 +225,7 @@ class AFAAggregator(Aggregator):
         roundsError = torch.zeros(self.rounds)
 
         for r in range(self.rounds):
-            print("Round... ", r)
+            logPrint("Round... ", r)
 
             for client in self.clients:
                 broadcastModel = copy.deepcopy(self.model).to(self.device)
@@ -257,7 +259,7 @@ class AFAAggregator(Aggregator):
                     if self.notBlockedNorBadUpdate(client):
                         client.sim = self.__modelSimilarity(self.model, models[client])
                         sim.append(np.asarray(client.sim.to("cpu")))
-                        # print("Similarity user ", u.id, ": ", u.sim)
+                        # logPrint("Similarity user ", u.id, ": ", u.sim)
 
                 sim = np.asarray(sim)
 
@@ -278,15 +280,15 @@ class AFAAggregator(Aggregator):
                         # Malicious self.clients are below the threshold
                         if meanS < medianS:
                             if client.sim < th:
-                                # print("Type1")
-                                # print("Bad update from user ", u.id)
+                                # logPrint("Type1")
+                                # logPrint("Bad update from user ", u.id)
                                 client.badUpdate = True
                                 badCount += 1
                                 # Malicious self.clients are above the threshold
                         else:
                             if client.sim > th:
-                                # print("Type 2")
-                                # print("Bad update from user ", u.id)
+                                # logPrint("Type 2")
+                                # logPrint("Bad update from user ", u.id)
                                 client.badUpdate = True
                                 badCount += 1
 
@@ -296,7 +298,7 @@ class AFAAggregator(Aggregator):
                     self.updateUserScore(client)
                     client.blocked = self.checkBlockedUser(client.alpha, client.beta)
                     if client.blocked:
-                        print("USER ", client.id, " BLOCKED!!!")
+                        logPrint("USER ", client.id, " BLOCKED!!!")
                         client.p = 0
                         if client.byz:
                             maliciousBlocked.append(client.id)
@@ -310,7 +312,7 @@ class AFAAggregator(Aggregator):
 
             for client in self.clients:
                 client.p = client.p / pT
-                # print("Weight user", u.id, ": ", round(u.p,3))
+                # logPrint("Weight user", u.id, ": ", round(u.p,3))
 
             # Update model with the updated scores
             pT_epoch = 0.0
@@ -354,8 +356,8 @@ class AFAAggregator(Aggregator):
                 d2 = torch.cat((d2, param1.data.view(-1)))
                 # d2 = param1.data
                 # sim = cos(d1.view(-1),d2.view(-1))
-                # print(name1,param1.size())
-                # print("Similarity: ",sim)
+                # logPrint(name1,param1.size())
+                # logPrint("Similarity: ",sim)
         sim = cos(d1, d2)
         return sim
 
