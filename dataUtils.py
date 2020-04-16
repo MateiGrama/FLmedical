@@ -49,8 +49,8 @@ def __loadMNISTdata():
 
     # Shuffle
     r = torch.randperm(x.size(0))
-    xTrain = x
-    yTrain = y
+    xTrain = x[r]
+    yTrain = y[r]
 
     # Scale pixel intensities to [-1, 1]
     xTest = testSet.test_data.clone().detach()

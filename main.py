@@ -1,3 +1,6 @@
+import random
+
+import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
@@ -33,7 +36,7 @@ def initClients(perc_users, training_data, training_labels, faulty, flipping):
     usersNo = perc_users.size(0)
     p0 = 1 / usersNo
     # Seed
-    torch.manual_seed(2)
+    __setRandomSeeds(2)
     logPrint("Creating clients...")
     clients = []
     for i in range(usersNo):
@@ -70,6 +73,20 @@ def initClients(perc_users, training_data, training_labels, faulty, flipping):
             # u.yTrain = u.yTrain[r]
             client.yTrain = torch.zeros(client.yTrain.size(), dtype=torch.int64)
     return clients
+
+
+def __setRandomSeeds(seed=0):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    # cudnn.deterministic = True
+    # warnings.warn('You have chosen to seed training. '
+    #               'This will turn on the CUDNN deterministic setting, '
+    #               'which can slow down your training considerably! '
+    #               'You may see unexpected behavior when restarting '
+    #               'from checkpoints.')
 
 
 # EXPERIMENTS #
@@ -120,6 +137,17 @@ def privacyPreservingFewClientsMNISTExperiment():
     faulty = []
     malicious = []
     _testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious)
+
+
+def noDP30ClientsMNISTExperiment():
+    perc_users = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                               ])
+    labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    faulty = []
+    malicious = []
+    _testAggregators(perc_users, labels, faulty, malicious)
 
 
 def privacyPreserving30ClientsMNISTExperiment():
@@ -190,6 +218,7 @@ def _testBothAggregators(perc_users, labels, faulty, malicious):
     plt.legend(errorsDict.keys())
     plt.show()
 
+
 logPrint("Experiment started.")
 # noByzClientMNISTExperiment()
 # byzClientMNISTExperiment()
@@ -199,3 +228,5 @@ logPrint("Experiment started.")
 # privacyPreservingAndVanillaNoByzClientMNIST()
 # privacyPreservingFewClientsMNISTExperiment()
 privacyPreserving30ClientsMNISTExperiment()
+# noByzClientMNISTExperiment()
+# noDP30ClientsMNISTExperiment()

@@ -4,8 +4,9 @@ import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from itertools import product
+from numpy import clip, percentile, array, concatenate, empty
 
-from numpy import clip, percentile
 from scipy.stats import laplace
 
 from logger import logPrint
@@ -92,8 +93,8 @@ class Client:
             self.__manipulateModel()
 
         if differentialPrivacy:
-            self.__privacyPreserve()
-
+            # self.__privacyPreserve()
+            self.__optimPrivacyPreserve()
         return self.model
 
     # Function to manipulate the model for byzantine adversaries
@@ -105,7 +106,7 @@ class Client:
 
     # Procedure for implementing differential privacy
     def __privacyPreserve(self, eps1=0.001, eps3=1, clipValue=0.0001, releaseProportion=0.1,
-                          needClip=True, needNormalization=False):
+                          needClip=False, needNormalization=False):
         logPrint("Privacy preserving for client{} in process..".format(self.id))
 
         gamma = clipValue  # gradient clipping value
@@ -126,7 +127,7 @@ class Client:
         paramChangesArr = [abs(param.data - untrainedParam.data) for param, untrainedParam in paramTuples]
 
         tau = percentile(paramChangesArr, Q * 100)
-        noisyThreshold = laplace.rvs(scale=(s / e2)) + tau
+        noisyThreshold = 0  # laplace.rvs(scale=(s / e2)) + tau
 
         logPrint("NoisyThreshold: {}\t"
                  "e1: {}\t"
@@ -169,14 +170,14 @@ class Client:
             paramNotReleasedYet = (releasedParams[paramName][index] == untrainedParams[paramName].data[index])
             if paramNotReleasedYet:
                 paramChange = changeOfParams[paramName][index]
-                queryNoise = laplace.rvs(scale=(2 * shareParams * s / e1))
+                queryNoise = 0  # laplace.rvs(scale=(2 * shareParams * s / e1))
                 if needClip:
                     noisyQuery = abs(clip(paramChange, -gamma, gamma)) + queryNoise
                 else:
                     noisyQuery = abs(paramChange) + queryNoise
 
                 if noisyQuery >= noisyThreshold:
-                    answerNoise = laplace.rvs(scale=(shareParams * s / e3))
+                    answerNoise = 0  # laplace.rvs(scale=(shareParams * s / e3))
                     if needClip:
                         noisyChange = clip(paramChange + answerNoise, -gamma, gamma)
                     else:
@@ -205,6 +206,109 @@ class Client:
             param.data.copy_(releasedParams[paramName].data)
 
         logPrint("Privacy preserving for client{} in done.".format(self.id))
+
+    # Procedure for implementing differential privacy
+    def __optimPrivacyPreserve(self, eps1=0.001, eps3=1, clipValue=0.0001, releaseProportion=0.1,
+                               needClip=False, needNormalization=False):
+        logPrint("Privacy preserving for client{} in process..".format(self.id))
+
+        gamma = clipValue  # gradient clipping value
+        s = 2 * gamma  # sensitivity
+        Q = releaseProportion  # proportion to release
+
+        params = dict(self.model.named_parameters())
+        untrainedParams = dict(self.untrainedModel.named_parameters())
+
+        # The gradients of the model parameters
+        paramArr = array(nn.utils.parameters_to_vector(self.model.parameters()).detach())
+        untrainedParamArr = array(nn.utils.parameters_to_vector(self.untrainedModel.parameters()).detach())
+        paramChanges = paramArr - untrainedParamArr
+
+        paramNo = len(paramArr)
+        shareParamsNo = int(Q * paramNo)
+
+        # Normalising
+        if needNormalization:
+            paramChanges /= self.n * self.epochs
+
+        # List of (parameterName, parameterIndex=Tuple) for vectorized parameter operations
+        paramIndex = []
+        for paramName in params.keys():
+            indexRanges = list(map(range, params[paramName].size()))
+            possibleIndexes = product(*indexRanges)
+            paramIndex += [(paramName, index) for index in possibleIndexes]
+        paramIndex = array(paramIndex)
+
+        # Privacy budgets for
+        e1 = eps1  # gradient query
+        e3 = eps3  # answer
+        e2 = e1 * ((2 * shareParamsNo * s) ** (2 / 3))  # threshold
+
+        tau = percentile(abs(paramChanges), Q * 100)
+        noisyThreshold = 0  # laplace.rvs(scale=(s / e2)) + tau
+
+        logPrint("NoisyThreshold: {}\t"
+                 "e1: {}\t"
+                 "e2: {}\t"
+                 "e3: {}\t"
+                 "shareParams: {}\t"
+                 "".format(round(noisyThreshold, 3),
+                           round(e1, 3),
+                           round(e2, 3),
+                           round(e3, 3),
+                           round(shareParamsNo, 3),
+                           ))
+
+        r = torch.randperm(paramNo)
+        paramChanges = paramChanges[r]
+        paramIndex = paramIndex[r]
+
+        # queryNoise = [laplace.rvs(scale=(2 * shareParams * s / e1)) for _ in range(paramNo)]
+        queryNoise = [0 for _ in range(paramNo)]  # )
+
+        if needClip:
+            noisyQuery = abs(clip(paramChanges, -gamma, gamma)) + queryNoise
+        else:
+            noisyQuery = abs(paramChanges) + queryNoise
+
+        releaseIndex = noisyQuery >= noisyThreshold
+        releaseChanges = paramChanges[releaseIndex][:shareParamsNo]
+        releaseIndex = paramIndex[releaseIndex][:shareParamsNo]
+
+        # answerNoise = [laplace.rvs(scale=(shareParams * s / e3)) for _ in range(shareParams)]
+        answerNoise = [0 for _ in range(shareParamsNo)]  # )
+        if needClip:
+            noisyChanges = clip(releaseChanges + answerNoise, -gamma, gamma)
+        else:
+            noisyChanges = releaseChanges + answerNoise
+
+        # Demoralising the noise
+        if needNormalization:
+            noisyChanges *= self.n * self.epochs
+
+        name, index = releaseIndex[0]
+        logPrint("Broadcast: {}\t"
+                 "Trained: {}\t"
+                 "Released: {}\t"
+                 "ReleasedChange: {}\t"
+                 "".format(untrainedParams[name].data[index],
+                           params[name].data[index],
+                           untrainedParams[name].data[index] + releaseChanges[0],
+                           releaseChanges[0]))
+
+        # Update client model
+        for paramName, param in params.items():
+            param.data.copy_(untrainedParams[paramName].data)
+
+        i = 0
+        for name, index in releaseIndex:
+            params[name].data[index] += releaseChanges[i]
+            i += 1
+
+# TODO: (1) explore random seed examples; (2) make index map and concatenate all names?
+#       (3) try out different configurations params configs; plot them;
+#       (4)
+
 
 # In the future:
 # different number of epochs for different clients
