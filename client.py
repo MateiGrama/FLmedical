@@ -215,28 +215,21 @@ class Client:
         s = 2 * gamma  # sensitivity
         Q = releaseProportion  # proportion to release
 
-        params = dict(self.model.named_parameters())
-        untrainedParams = dict(self.untrainedModel.named_parameters())
-
         # The gradients of the model parameters
-        paramArr = array(nn.utils.parameters_to_vector(self.model.parameters()).detach())
-        untrainedParamArr = array(nn.utils.parameters_to_vector(self.untrainedModel.parameters()).detach())
-        paramChanges = paramArr - untrainedParamArr
+        paramArr = nn.utils.parameters_to_vector(self.model.parameters())
+        untrainedParamArr = nn.utils.parameters_to_vector(self.untrainedModel.parameters())
 
         paramNo = len(paramArr)
         shareParamsNo = int(Q * paramNo)
 
+        r = torch.randperm(paramNo).to(self.device)
+        paramArr = paramArr[r].to(self.device)
+        untrainedParamArr = untrainedParamArr[r].to(self.device)
+        paramChanges = (paramArr - untrainedParamArr).detach().to(self.device)
+
         # Normalising
         if needNormalization:
             paramChanges /= self.n * self.epochs
-
-        # List of (parameterName, parameterIndex=Tuple) for vectorized parameter operations
-        paramIndex = []
-        for paramName in params.keys():
-            indexRanges = list(map(range, params[paramName].size()))
-            possibleIndexes = product(*indexRanges)
-            paramIndex += [(paramName, index) for index in possibleIndexes]
-        paramIndex = array(paramIndex)
 
         # Privacy budgets for
         e1 = eps1  # gradient query
@@ -258,52 +251,43 @@ class Client:
                            round(shareParamsNo, 3),
                            ))
 
-        r = torch.randperm(paramNo)
-        paramChanges = paramChanges[r]
-        paramIndex = paramIndex[r]
-
         queryNoise = [laplace.rvs(scale=(2 * shareParamsNo * s / e1)) for _ in range(paramNo)]
+        queryNoise = torch.tensor(queryNoise).to(self.device)
         # queryNoise = [0 for _ in range(paramNo)]  # )
 
         if needClip:
             noisyQuery = abs(clip(paramChanges, -gamma, gamma)) + queryNoise
         else:
             noisyQuery = abs(paramChanges) + queryNoise
+        noisyQuery = noisyQuery.to(self.device)
 
         releaseIndex = noisyQuery >= noisyThreshold
-        releaseChanges = paramChanges[releaseIndex][:shareParamsNo]
-        releaseIndex = paramIndex[releaseIndex][:shareParamsNo]
 
-        answerNoise = [laplace.rvs(scale=(shareParamsNo * s / e3)) for _ in range(shareParamsNo)]
-        # answerNoise = [0 for _ in range(shareParamsNo)]  # )
+        # answerNoise = [0 for _ in range(shareParamsNo)]
+        answerNoise = [laplace.rvs(scale=(shareParamsNo * s / e3)) if i else 0 for i in releaseIndex]
+        answerNoise = torch.tensor(answerNoise).to(self.device)
         if needClip:
-            noisyChanges = clip(releaseChanges + answerNoise, -gamma, gamma)
+            noisyChanges = clip(paramChanges + answerNoise, -gamma, gamma)
         else:
-            noisyChanges = releaseChanges + answerNoise
+            noisyChanges = paramChanges + answerNoise
+        noisyChanges = noisyChanges.to(self.device)
 
         # Demoralising the noise
         if needNormalization:
             noisyChanges *= self.n * self.epochs
 
-        name, index = releaseIndex[0]
         logPrint("Broadcast: {}\t"
                  "Trained: {}\t"
                  "Released: {}\t"
                  "ReleasedChange: {}\t"
-                 "".format(untrainedParams[name].data[index],
-                           params[name].data[index],
-                           untrainedParams[name].data[index] + releaseChanges[0],
-                           releaseChanges[0]))
+                 "".format(untrainedParamArr[0],
+                           paramArr[0],
+                           paramArr[0] + noisyChanges[0],
+                           noisyChanges[0]))
         sys.stdout.flush()
 
-        # Update client model
-        for paramName, param in params.items():
-            param.data.copy_(untrainedParams[paramName].data)
-
-        i = 0
-        for name, index in releaseIndex:
-            params[name].data[index] += releaseChanges[i]
-            i += 1
+        paramArr = untrainedParamArr
+        paramArr[releaseIndex][:shareParamsNo] += noisyChanges[releaseIndex][:shareParamsNo]
 
 # TODO: (1) explore random seed examples; (2) make index map and concatenate all names?
 #       (3) try out different configurations params configs; plot them;

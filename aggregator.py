@@ -1,4 +1,6 @@
 import copy
+import sys
+
 from logger import logPrint
 from threading import Thread
 from scipy.stats import beta
@@ -61,6 +63,7 @@ class Aggregator:
         mconf = confusion_matrix(yTest.to("cpu"), Ypred.to("cpu"))
         errors = 1 - 1.0 * mconf.diagonal().sum() / xTest.size(0)
         logPrint("Error Rate: ", round(100.0 * errors, 3), "%")
+        sys.stdout.flush()
         return errors
 
     # Function for computing predictions
