@@ -47,7 +47,7 @@ class Client:
         # FA Client params
         self.alpha = alpha
         self.beta = beta
-        self.score = alpha / beta
+        self.score = alpha / betagit
         self.blocked = False
 
     def updateModel(self, model):
