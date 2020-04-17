@@ -47,7 +47,7 @@ class Client:
         # FA Client params
         self.alpha = alpha
         self.beta = beta
-        self.score = alpha / betagit
+        self.score = alpha / beta
         self.blocked = False
 
     def updateModel(self, model):
@@ -295,6 +295,7 @@ class Client:
                            params[name].data[index],
                            untrainedParams[name].data[index] + releaseChanges[0],
                            releaseChanges[0]))
+        sys.stdout.flush()
 
         # Update client model
         for paramName, param in params.items():

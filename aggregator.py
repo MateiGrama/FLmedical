@@ -1,15 +1,12 @@
 import copy
+from logger import logPrint
 from threading import Thread
+from scipy.stats import beta
+from sklearn.metrics import confusion_matrix
 
 import torch
 import torch.nn as nn
 import numpy as np
-
-from scipy.stats import beta
-
-from sklearn.metrics import confusion_matrix
-
-from logger import logPrint
 
 
 class Aggregator:
@@ -384,4 +381,4 @@ class AFAAggregator(Aggregator):
 
 
 aggregators = Aggregator.__subclasses__()
-aggregators = [AFAAggregator]
+aggregators = [FAAggregator]
