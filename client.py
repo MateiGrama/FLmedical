@@ -236,8 +236,9 @@ class Client:
         e3 = eps3  # answer
         e2 = e1 * ((2 * shareParamsNo * s) ** (2 / 3))  # threshold
 
-        tau = percentile(abs(paramChanges), Q * 100)
+        tau = percentile(abs(paramChanges.cpu()), Q * 100)
         noisyThreshold = laplace.rvs(scale=(s / e2)) + tau
+        paramChanges = paramChanges.to(self.device)
 
         logPrint("NoisyThreshold: {}\t"
                  "e1: {}\t"
