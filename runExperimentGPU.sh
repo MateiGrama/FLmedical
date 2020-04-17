@@ -4,12 +4,14 @@
 #SBATCH --mail-user=mgg17
 
 source /vol/bitbucket/mgg17/diss/venv/bin/activate
-source /vol/cuda/10.0.130/setup.sh
+
+./vol/cuda/10.0.130/setup.sh
+
 TERM=vt100
+
 /usr/bin/nvidia-smi
+
 uptime
-
-
 
 nohup python -u main.py > out/experiment.log 2>&1 &
 echo $! > out/lastExperimentPID.txt

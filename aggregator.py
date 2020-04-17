@@ -11,7 +11,7 @@ import numpy as np
 
 class Aggregator:
     def __init__(self, clients, model, rounds, device,
-                 useAsyncClients=True, useDifferentialPrivacy=False):
+                 useAsyncClients=False, useDifferentialPrivacy=False):
         self.model = model
         self.rounds = rounds
         self.clients = clients
@@ -95,7 +95,7 @@ class FAAggregator(Aggregator):
             # Merge models
             comb = 0.0
             for client in self.clients:
-                self._mergeModels(models[client], self.model, client.p, comb)
+                self._mergeModels(models[client].to(self.device), self.model.to(self.device), client.p, comb)
                 comb = 1.0
 
             roundsError[r] = self.test(xTest, yTest)
@@ -143,7 +143,6 @@ class COMEDAggregator(Aggregator):
         return modelCopy.to(self.device)
 
 
-# MULTI-KRUM
 class MKRUMAggregator(Aggregator):
 
     def trainAndTest(self, xTest, yTest):
@@ -182,7 +181,7 @@ class MKRUMAggregator(Aggregator):
             comb = 0.0
             for client in self.clients:
                 if client.id in selected_users:
-                    self._mergeModels(models[client], self.model, 1 / mk, comb)
+                    self._mergeModels(models[client].to(self.device), self.model.to(self.device), 1 / mk, comb)
                     comb = 1.0
 
             roundsError[r] = self.test(xTest, yTest)
@@ -248,7 +247,7 @@ class AFAAggregator(Aggregator):
                 comb = 0.0
                 for client in self.clients:
                     if self.notBlockedNorBadUpdate(client):
-                        self._mergeModels(models[client], self.model, client.pEpoch, comb)
+                        self._mergeModels(models[client].to(self.device), self.model.to(self.device), client.pEpoch, comb)
                         comb = 1.0
 
                 sim = []
@@ -325,7 +324,7 @@ class AFAAggregator(Aggregator):
             comb = 0.0
             for client in self.clients:
                 if self.notBlockedNorBadUpdate(client):
-                    self._mergeModels(models[client], self.model, client.pEpoch, comb)
+                    self._mergeModels(models[client].to(self.device), self.model.to(self.device), client.pEpoch, comb)
                     comb = 1.0
 
             # Reset badUpdate variable
