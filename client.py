@@ -66,19 +66,18 @@ class Client:
             self.xTrain = self.xTrain[r]
             self.yTrain = self.yTrain[r]
             for iBatch in range(0, self.xTrain.size(0), self.batchSize):
-                x = self.xTrain[iBatch:iBatch + self.batchSize, :]
-                y = self.yTrain[iBatch:iBatch + self.batchSize]
+                x = self.xTrain[iBatch:iBatch + self.batchSize, :].to(self.device)
+                y = self.yTrain[iBatch:iBatch + self.batchSize].to(self.device)
                 err, pred = self._trainClassifier(x, y)
         return err, pred
 
     # Function to train the classifier
     def _trainClassifier(self, x, y):
-        x.to(self.device)
-        y.to(self.device)
+        x = x.to(self.device)
+        y = y.to(self.device)
         # Reset gradients
         self.opt.zero_grad()
-        pred = self.model(x)
-        pred.to(self.device)
+        pred = self.model(x).to(self.device)
         err = self.loss(pred, y).to(self.device)
         err.backward()
         # Update optimizer

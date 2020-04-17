@@ -20,6 +20,7 @@ class Aggregator:
         self.useDifferentialPrivacy = useDifferentialPrivacy
 
         self.device = device
+        self.model.to(self.device)
 
     def trainAndTest(self, xTest, yTest):
         raise Exception("Train method should be override by child class, "
