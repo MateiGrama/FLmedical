@@ -384,4 +384,4 @@ class AFAAggregator(Aggregator):
 
 
 aggregators = Aggregator.__subclasses__()
-aggregators = [FAAggregator, AFAAggregator]
+# aggregators = [FAAggregator, AFAAggregator]
