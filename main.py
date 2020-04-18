@@ -1,14 +1,15 @@
 import random
 import time
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
 
 import aggregator as agg
-from dataUtils import loadMNISTdata
-from client import Client
 import classifierMNIST
+from client import Client
+from itertools import product
+from dataUtils import loadMNISTdata
 from logger import logPrint
 
 
@@ -152,7 +153,7 @@ def experiment(exp):
         end = time.time()
         logPrint("Experiment {} took {}".format(exp.__name__, end - begin))
 
-    return decorator()
+    return decorator
 
 
 @experiment
@@ -268,4 +269,50 @@ def withAndWithoutDP_30withByzClients_onMNIST():
     __experimentOnMNIST(configuration)
 
 
-withAndWithoutDP_30withByzClients_onMNIST()
+@experiment
+def noDP_noByzClient_fewRounds_onMNIST():
+    configuration = ExperimentConfiguration()
+    configuration.rounds = 3
+    configuration.plotResults = True
+    __experimentOnMNIST(configuration)
+
+
+@experiment
+def withMultipleDPconfigsAndWithout_30notByzClients():
+    releaseProportion = {0.1, 0.4}
+    epsilon1 = {1, 0.01, 0.0001}
+    epsilon3 = {1, 0.01, 0.0001}
+    clipValues = {0.01, 0.0001}
+    needClip = {False, True}
+    needNormalise = {False, True}
+
+    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+    # Without DP
+    noDPconfig = ExperimentConfiguration()
+    noDPconfig.aggregators = agg.allAggregators()
+    noDPconfig.percUsers = percUsers
+    __experimentOnMNIST(noDPconfig)
+
+    # With DP
+    for config in product(needClip, clipValues, epsilon1, epsilon3,
+                          needNormalise, releaseProportion):
+        needClip, clipValues, epsilon1, epsilon3, needNormalise, releaseProportion = config
+
+        expConfig = ExperimentConfiguration()
+        expConfig.percUsers = percUsers
+        expConfig.aggregators = agg.allAggregators()
+
+        expConfig.privacyPreserve = True
+        expConfig.releaseProportion = releaseProportion
+        expConfig.needNormalise = needNormalise
+        expConfig.clipValues = clipValues
+        expConfig.needClip = needClip
+        expConfig.epsilon1 = epsilon1
+        expConfig.epsilon3 = epsilon3
+
+        __experimentOnMNIST(expConfig)
+
+
+withMultipleDPconfigsAndWithout_30notByzClients()
