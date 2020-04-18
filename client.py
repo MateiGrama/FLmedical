@@ -211,7 +211,7 @@ class Client:
                                needClip=False, needNormalization=False):
         logPrint("Privacy preserving for client{} in process..".format(self.id))
 
-        gamma = clipValue  # gradient clipping value
+        gamma = torch.tensor(clipValue).to(self.device) # gradient clipping value
         s = 2 * gamma  # sensitivity
         Q = releaseProportion  # proportion to release
 
@@ -238,22 +238,23 @@ class Client:
 
         paramChanges = paramChanges.cpu()
         tau = percentile(abs(paramChanges), Q * 100)
-        noisyThreshold = laplace.rvs(scale=(s / e2)) + tau
         paramChanges = paramChanges.to(self.device)
+        # tau = 0.0001
+        noisyThreshold = laplace.rvs(scale=(s / e2)) + tau
 
-        logPrint("NoisyThreshold: {}\t"
-                 "e1: {}\t"
-                 "e2: {}\t"
-                 "e3: {}\t"
-                 "shareParams: {}\t"
-                 "".format(round(noisyThreshold, 3),
-                           round(e1, 3),
-                           round(e2, 3),
-                           round(e3, 3),
-                           round(shareParamsNo, 3),
-                           ))
+        # logPrint("NoisyThreshold: {}\t"
+        #          "e1: {}\t"
+        #          "e2: {}\t"
+        #          "e3: {}\t"
+        #          "shareParams: {}\t"
+        #          "".format(round(noisyThreshold, 3),
+        #                    round(e1, 3),
+        #                    round(e2, 3),
+        #                    round(e3, 3),
+        #                    round(shareParamsNo, 3),
+        #                    ))
 
-        queryNoise = [laplace.rvs(scale=(2 * shareParamsNo * s / e1)) for _ in range(paramNo)]
+        queryNoise = laplace.rvs(scale=(2 * shareParamsNo * s / e1), size=paramNo)
         queryNoise = torch.tensor(queryNoise).to(self.device)
         # queryNoise = [0 for _ in range(paramNo)]  # )
 
@@ -263,35 +264,38 @@ class Client:
             noisyQuery = abs(paramChanges) + queryNoise
         noisyQuery = noisyQuery.to(self.device)
 
-        releaseIndex = noisyQuery >= noisyThreshold
+        releaseIndex = (noisyQuery >= noisyThreshold).to(self.device)
+        filteredChanges = paramChanges[releaseIndex]
 
-        # answerNoise = [0 for _ in range(shareParamsNo)]
-        answerNoise = [laplace.rvs(scale=(shareParamsNo * s / e3)) if i else 0 for i in releaseIndex]
+        answerNoise = laplace.rvs(scale=(shareParamsNo * s / e3), size=sum(releaseIndex))
         answerNoise = torch.tensor(answerNoise).to(self.device)
         if needClip:
-            noisyChanges = clip(paramChanges + answerNoise, -gamma, gamma)
+            noisyFilteredChanges = clip(filteredChanges + answerNoise, -gamma, gamma)
         else:
-            noisyChanges = paramChanges + answerNoise
-        noisyChanges = noisyChanges.to(self.device)
+            noisyFilteredChanges = filteredChanges + answerNoise
+        noisyFilteredChanges = noisyFilteredChanges.to(self.device)
 
         # Demoralising the noise
         if needNormalization:
-            noisyChanges *= self.n * self.epochs
+            noisyFilteredChanges *= self.n * self.epochs
 
         logPrint("Broadcast: {}\t"
                  "Trained: {}\t"
                  "Released: {}\t"
+                 "answerNoise: {}\t"
                  "ReleasedChange: {}\t"
-                 "".format(untrainedParamArr[0],
-                           paramArr[0],
-                           paramArr[0] + noisyChanges[0],
-                           noisyChanges[0]))
+                 "".format(untrainedParamArr[releaseIndex][0],
+                           paramArr[releaseIndex][0],
+                           untrainedParamArr[releaseIndex][0] + noisyFilteredChanges[0],
+                           answerNoise[0],
+                           noisyFilteredChanges[0]))
         sys.stdout.flush()
 
         paramArr = untrainedParamArr
-        paramArr[releaseIndex][:shareParamsNo] += noisyChanges[releaseIndex][:shareParamsNo]
+        paramArr[releaseIndex][:shareParamsNo] += noisyFilteredChanges[:shareParamsNo]
+        # logPrint("Privacy preserving for client{} done.".format(self.id))
 
-# TODO: (1) explore random seed examples; (2) make index map and concatenate all names?
+# TODO: (1) explore random seed examples;
 #       (3) try out different configurations params configs; plot them;
 #       (4)
 
