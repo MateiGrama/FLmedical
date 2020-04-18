@@ -1,55 +1,108 @@
 import random
+import time
 
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
-from aggregator import aggregators
+import aggregator as agg
 from dataUtils import loadMNISTdata
 from client import Client
 import classifierMNIST
 from logger import logPrint
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-classifier = classifierMNIST.Classifier
 
-# TRAINING PARAMETERS
-rounds = 10  # TOTAL NUMBER OF TRAINING ROUNDS
-epochs = 10  # NUMBER OF EPOCHS RUN IN EACH CLIENT BEFORE SENDING BACK THE MODEL UPDATE
-batch_size = 200  # BATCH SIZE
+class ExperimentConfiguration:
+    def __init__(self):
+        # DEFAULT PARAMETERS
+
+        # Federated learning parameters
+        self.rounds = 10  # Total number of training rounds
+        self.epochs = 10  # Epochs num locally run by clients before sending back the model update
+        self.batchSize = 200  # Local training  batch size
+
+        # Clients setup
+        self.percUsers = torch.tensor([0.2, 0.10, 0.15, 0.15, 0.15, 0.15, 0.1])  # Client data partition
+        self.labels = torch.tensor(range(10))  # Considered dataset labels
+        self.faulty = []  # List of noisy clients
+        self.flipping = []  # List of (malicious) clients with flipped labels
+
+        # Client privacy preserving module setup
+        self.privacyPreserve = False  # if None, run with AND without DP
+        self.releaseProportion = 0.1
+        self.epsilon1 = 1
+        self.epsilon3 = 1
+        self.needClip = False
+        self.clipValue = 0.01
+        self.needNormalization = False
+
+        self.aggregators = agg.FAandAFA()  # Aggregation strategies
+
+        self.plotResults = False
+
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-def trainOnMNIST(aggregator, perc_users, labels, faulty, flipping, privacyPreserving=False):
-    logPrint("Loading MNIST...")
-    training_data, training_labels, xTest, yTest = loadMNISTdata(perc_users, labels)
+def __experimentOnMNIST(config):
+    dataLoader = loadMNISTdata
+    classifier = classifierMNIST.Classifier
+    errorsDict = dict()
+    for aggregator in config.aggregators:
+        if config.privacyPreserve is not None:
+            name = aggregator.__name__.replace("Aggregator", (" with DP" if config.privacyPreserve else ""))
+            logPrint("TRAINING {}...".format(name))
+            errorsDict[name] = __runExperiment(config, dataLoader, classifier,
+                                               aggregator, config.privacyPreserve)
+        else:
+            name = aggregator.__name__.replace("Aggregator", "")
+            logPrint("TRAINING {}...".format(name))
+            errorsDict[name] = __runExperiment(config, dataLoader, classifier, aggregator,
+                                               useDifferentialPrivacy=False)
+            logPrint("TRAINING {} with DP...".format(name))
+            errorsDict[name] = __runExperiment(config, dataLoader, classifier, aggregator,
+                                               useDifferentialPrivacy=True)
 
-    clients = initClients(perc_users, training_data, training_labels, faulty, flipping)
+    if config.plotResults:
+        plt.figure()
+        i = 0
+        colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:cyan',
+                  'tab:purple', 'tab:pink', 'tab:olive', 'tab:brown', 'tab:gray']
+        for name, err in errorsDict.items():
+            plt.plot(err.numpy(), color=colors[i])
+            i += 1
+        plt.legend(errorsDict.keys())
+        plt.show()
 
-    # CREATE MODEL
-    model = classifier().to(device)
-    aggregator = aggregator(clients, model, rounds, device,
-                            useDifferentialPrivacy=privacyPreserving)
+
+def __runExperiment(config, dataLoader, classifier, aggregator, useDifferentialPrivacy):
+    training_data, training_labels, xTest, yTest = dataLoader(config.percUsers, config.labels)
+    clients = __initClients(config, training_data, training_labels)
+    model = classifier().to(config.device)
+    aggregator = aggregator(clients, model, config.rounds, config.device)
     return aggregator.trainAndTest(xTest, yTest)
 
 
-def initClients(perc_users, training_data, training_labels, faulty, flipping):
-    usersNo = perc_users.size(0)
+def __initClients(config, training_data, training_labels):
+    usersNo = config.percUsers.size(0)
     p0 = 1 / usersNo
     # Seed
-    __setRandomSeeds(2)
     logPrint("Creating clients...")
     clients = []
     for i in range(usersNo):
-        clients.append(Client(model=False,
-                              epochs=epochs,
-                              batchSize=batch_size,
+        clients.append(Client(idx=i + 1,
                               x=training_data[i],
                               y=training_labels[i],
                               p=p0,
-                              idx=i + 1,
-                              byzantine=False,
-                              flip=False,
-                              device=device))
+                              epochs=config.epochs,
+                              batchSize=config.batchSize,
+                              device=config.device,
+                              useDifferentialPrivacy=config.privacyPreserve,
+                              epsilon1=config.epsilon1,
+                              epsilon3=config.epsilon3,
+                              needClip=config.needClip,
+                              clipValue=config.clipValue,
+                              needNormalization=config.needNormalization,
+                              releaseProportion=config.releaseProportion))
 
     ntr = 0
     for client in clients:
@@ -62,10 +115,10 @@ def initClients(perc_users, training_data, training_labels, faulty, flipping):
 
     # Create malicious (byzantine) users
     for client in clients:
-        if client.id in faulty:
+        if client.id in config.faulty:
             client.byz = True
             logPrint("User ", client.id, " is faulty.")
-        if client.id in flipping:
+        if client.id in config.flipping:
             client.flip = True
             logPrint("User ", client.id, " is malicious.")
             # Flip labels
@@ -90,170 +143,129 @@ def __setRandomSeeds(seed=0):
 
 
 # EXPERIMENTS #
+def experiment(exp):
+    def decorator():
+        __setRandomSeeds(2)
+        logPrint("Experiment {} began.".format(exp.__name__))
+        begin = time.time()
+        exp()
+        end = time.time()
+        logPrint("Experiment {} took {}".format(exp.__name__, end - begin))
 
-def noByzClientMNISTExperiment():
-    perc_users = torch.tensor([0.2, 0.10, 0.15, 0.15, 0.15, 0.15, 0.1])
-    labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    faulty = []
-    malicious = []
-    _testAggregators(perc_users, labels, faulty, malicious)
-
-
-def byzClientMNISTExperiment():
-    perc_users = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1])
-    labels = torch.tensor([0, 2, 5, 8])
-    faulty = [2, 6]
-    malicious = [1]
-    _testAggregators(perc_users, labels, faulty, malicious)
+    return decorator()
 
 
-def privacyPreservingNoByzClientMNISTExperiment():
-    perc_users = torch.tensor([0.2, 0.10, 0.15, 0.15, 0.15, 0.15, 0.1])
-    labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    faulty = []
-    malicious = []
-    _testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious)
+@experiment
+def noDP_noByzClient_onMNIST():
+    configuration = ExperimentConfiguration()
+
+    __experimentOnMNIST(configuration)
 
 
-def privacyPreservingAndVanillaNoByzClientMNIST():
-    perc_users = torch.tensor([0.2, 0.10, 0.15, 0.15, 0.15, 0.15, 0.1])
-    labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    faulty = []
-    malicious = []
-    _testBothAggregators(perc_users, labels, faulty, malicious)
+@experiment
+def withDP_withByzClient_onMNIST():
+    configuration = ExperimentConfiguration()
+
+    configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1])
+    configuration.labels = torch.tensor([0, 2, 5, 8])
+    configuration.faulty = [2, 6]
+    configuration.malicious = [1]
+
+    __experimentOnMNIST(configuration)
 
 
-def privacyPreservingByzClientMNISTExperiment():
-    perc_users = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1])
-    labels = torch.tensor([0, 2, 5, 8])
-    faulty = [2, 6]
-    malicious = [1]
-    _testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious)
+@experiment
+def withDP_noByzClient_onMNIST():
+    configuration = ExperimentConfiguration()
+
+    configuration.labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    configuration.faulty = []
+    configuration.malicious = []
+    configuration.privacyPreserve = True
+
+    __experimentOnMNIST(configuration)
 
 
-def privacyPreservingFewClientsMNISTExperiment():
-    perc_users = torch.tensor([0.3, 0.25, 0.45])
-    labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    faulty = []
-    malicious = []
-    _testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious)
+@experiment
+def withAndWithoutDP_noByzClient_onMNIST():
+    configuration = ExperimentConfiguration()
+
+    configuration.privacyPreserve = None
+
+    __experimentOnMNIST(configuration)
 
 
-def noDP30ClientsMNISTExperiment():
-    perc_users = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                               ])
-    labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    faulty = []
-    malicious = []
-    _testAggregators(perc_users, labels, faulty, malicious)
+@experiment
+def withDP_withByzClient_onMNIST():
+    configuration = ExperimentConfiguration()
+
+    configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1])
+    configuration.labels = torch.tensor([0, 2, 5, 8])
+    configuration.faulty = [2, 6]
+    configuration.malicious = [1]
+    configuration.privacyPreserve = True
+
+    __experimentOnMNIST(configuration)
 
 
-def privacyPreserving30ClientsMNISTExperiment():
-    perc_users = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                               ])
-    labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    faulty = []
-    malicious = []
-    _testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious)
+@experiment
+def withDP_fewNotByzClient_onMNIST():
+    configuration = ExperimentConfiguration()
+
+    configuration.percUsers = torch.tensor([0.3, 0.25, 0.45])
+    configuration.labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    configuration.privacyPreserve = True
+
+    __experimentOnMNIST(configuration)
 
 
-def testBothAgg30ClientsMNISTExperiment():
-    perc_users = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                               ])
-    labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    faulty = []
-    malicious = []
-    _testBothAggregators(perc_users, labels, faulty, malicious)
+@experiment
+def noDP_30notByzClients_onMNIST():
+    configuration = ExperimentConfiguration()
+
+    configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+
+    __experimentOnMNIST(configuration)
 
 
-def testBothAgg30ByzClientsMNISTExperiment():
-    perc_users = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 10, 0.2, 0.2,
-                               ])
-    labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    faulty = [2, 10, 13]
-    malicious = [15, 18]
-    _testBothAggregators(perc_users, labels, faulty, malicious)
+@experiment
+def withDP_30Clients_onMNIST():
+    configuration = ExperimentConfiguration()
 
-def _testAggregators(perc_users, labels, faulty, malicious):
-    errorsDict = dict()
-    for aggregator in aggregators:
-        name = aggregator.__name__.replace("Aggregator", "")
-        logPrint("TRAINING {}...".format(name))
-        errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious)
+    configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+    configuration.privacyPreserve = True
 
-    plt.figure()
-    i = 0
-    colors = ['b', 'k', 'r', 'g']
-    for name, err in errorsDict.items():
-        plt.plot(err.numpy(), color=colors[i])
-        i += 1
-    plt.legend(errorsDict.keys())
-    plt.show()
+    __experimentOnMNIST(configuration)
 
 
-def _testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious):
-    errorsDict = dict()
-    for aggregator in aggregators:
-        name = aggregator.__name__.replace("Aggregator", "")
-        logPrint("TRAINING PRIVACY PRESERVING {}...".format(name))
-        errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious, privacyPreserving=True)
+@experiment
+def withAndWithoutDP_30notByzClients_onMNIST():
+    configuration = ExperimentConfiguration()
 
-    plt.figure()
-    i = 0
-    colors = ['b', 'k', 'r', 'g']
-    for name, err in errorsDict.items():
-        plt.plot(err.numpy(), color=colors[i])
-        i += 1
-    plt.legend(errorsDict.keys())
-    plt.show()
+    configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+    configuration.privacyPreserve = None
+
+    __experimentOnMNIST(configuration)
 
 
-def _testBothAggregators(perc_users, labels, faulty, malicious):
-    errorsDict = dict()
-    for aggregator in aggregators:
-        name = aggregator.__name__.replace("Aggregator", "")
+@experiment
+def withAndWithoutDP_30withByzClients_onMNIST():
+    configuration = ExperimentConfiguration()
 
-        logPrint("TRAINING VANILLA {}...".format(name))
-        errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious,
-                                        privacyPreserving=False)
+    configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 10, 0.2, 0.2])
+    configuration.faulty = [2, 10, 13]
+    configuration.malicious = [15, 18]
+    configuration.privacyPreserve = None
 
-        name += " + DP"
-        logPrint("TRAINING PRIVACY PRESERVING {}...".format(name))
-        errorsDict[name] = trainOnMNIST(aggregator, perc_users, labels, faulty, malicious,
-                                        privacyPreserving=True)
-
-    plt.figure()
-    i = 0
-    colors = ['b', 'g', 'c', 'm', 'y', 'k', 'r']
-    for name, err in errorsDict.items():
-        plt.plot(err.numpy(), color=colors[i])
-        i += 1
-    plt.legend(errorsDict.keys())
-    plt.show()
+    __experimentOnMNIST(configuration)
 
 
-logPrint("Experiment started.")
-# noByzClientMNISTExperiment()
-# byzClientMNISTExperiment()
-# privacyPreservingNoByzClientMNISTExperiment()
-# privacyPreservingAndVanillaNoByzClientMNIST()
-
-# privacyPreservingAndVanillaNoByzClientMNIST()
-# privacyPreservingFewClientsMNISTExperiment()
-# privacyPreserving30ClientsMNISTExperiment()
-# noByzClientMNISTExperiment()
-# noDP30ClientsMNISTExperiment()
-# privacyPreserving30ClientsMNISTExperiment()
-# testBothAgg30ClientsMNISTExperiment()
-testBothAgg30ByzClientsMNISTExperiment()
-# byzClientMNISTExperiment()
-
-# privacyPreservingFewClientsMNISTExperiment()
+withAndWithoutDP_30withByzClients_onMNIST()

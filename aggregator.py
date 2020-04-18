@@ -12,17 +12,13 @@ import numpy as np
 
 
 class Aggregator:
-    def __init__(self, clients, model, rounds, device,
-                 useAsyncClients=False, useDifferentialPrivacy=False):
-        self.model = model
-        self.rounds = rounds
+    def __init__(self, clients, model, rounds, device, useAsyncClients=False):
+        self.model = model.to(device)
         self.clients = clients
-
-        self.useAsyncClients = useAsyncClients
-        self.useDifferentialPrivacy = useDifferentialPrivacy
+        self.rounds = rounds
 
         self.device = device
-        self.model.to(self.device)
+        self.useAsyncClients = useAsyncClients
 
     def trainAndTest(self, xTest, yTest):
         raise Exception("Train method should be override by child class, "
@@ -51,7 +47,7 @@ class Aggregator:
         for client in self.clients:
             # If client blocked return an the unchanged version of the model
             if not client.blocked:
-                models[client] = client.retrieveModel(self.useDifferentialPrivacy)
+                models[client] = client.retrieveModel()
             else:
                 models[client] = client.model
         return models
@@ -251,7 +247,8 @@ class AFAAggregator(Aggregator):
                 comb = 0.0
                 for client in self.clients:
                     if self.notBlockedNorBadUpdate(client):
-                        self._mergeModels(models[client].to(self.device), self.model.to(self.device), client.pEpoch, comb)
+                        self._mergeModels(models[client].to(self.device), self.model.to(self.device), client.pEpoch,
+                                          comb)
                         comb = 1.0
 
                 sim = []
@@ -383,5 +380,10 @@ class AFAAggregator(Aggregator):
         return client.blocked == False | client.badUpdate == False
 
 
-aggregators = Aggregator.__subclasses__()
-# aggregators = [FAAggregator, AFAAggregator]
+def allAggregators():
+    return Aggregator.__subclasses__()
+
+
+# FederatedAveraging and Adaptive Federated Averaging
+def FAandAFA():
+    return [FAAggregator, AFAAggregator]

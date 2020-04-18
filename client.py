@@ -15,8 +15,10 @@ from logger import logPrint
 class Client:
     """ An internal representation of a client """
 
-    def __init__(self, model, epochs, batchSize, x, y, p, idx, byzantine, flip, device,
-                 alpha=3.0, beta=3.0):
+    def __init__(self, epochs, batchSize, x, y, p, idx, device, useDifferentialPrivacy,
+                 releaseProportion, epsilon1, epsilon3, needClip, clipValue, needNormalization,
+                 byzantine=None, flipping=None, model=None, alpha=3.0, beta=3.0):
+
         self.name = "client" + str(idx)
         self.device = device
 
@@ -27,7 +29,7 @@ class Client:
         self.n = x.size()[0]  # Number of training points provided
         self.id = idx  # ID for the user
         self.byz = byzantine  # Boolean indicating whether the user is faulty or not
-        self.flip = flip  # Boolean indicating whether the user is malicious or not (label flipping attack)
+        self.flip = flipping  # Boolean indicating whether the user is malicious or not (label flipping attack)
 
         # Used for computing dW, i.e. the change in model before
         # and after client local training, when DP is used
@@ -44,11 +46,20 @@ class Client:
         self.learningRate = 0.1
         self.momentum = 0.9
 
-        # FA Client params
+        # AFA Client params
         self.alpha = alpha
         self.beta = beta
         self.score = alpha / beta
         self.blocked = False
+
+        # DP parameters
+        self.useDifferentialPrivacy = useDifferentialPrivacy
+        self.epsilon1 = epsilon1
+        self.epsilon3 = epsilon3
+        self.needClip = needClip
+        self.clipValue = clipValue
+        self.needNormalization = needNormalization
+        self.releaseProportion = releaseProportion
 
     def updateModel(self, model):
         self.model = model
@@ -85,13 +96,13 @@ class Client:
         return err, pred
 
     # Function used by aggregators to retrieve the model from the client
-    def retrieveModel(self, differentialPrivacy=False):
+    def retrieveModel(self):
         if self.byz:
             # Malicious model update
             # logPrint("Malicous update for user ",u.id)
             self.__manipulateModel()
 
-        if differentialPrivacy:
+        if self.useDifferentialPrivacy:
             # self.__privacyPreserve()
             self.__optimPrivacyPreserve()
         return self.model
@@ -104,112 +115,10 @@ class Client:
             param.data.copy_(param.data + noise)
 
     # Procedure for implementing differential privacy
-    def __privacyPreserve(self, eps1=100, eps3=100, clipValue=0.1, releaseProportion=0.1,
-                          needClip=False, needNormalization=False):
-        logPrint("Privacy preserving for client{} in process..".format(self.id))
-
-        gamma = clipValue  # gradient clipping value
-        s = 2 * gamma  # sensitivity
-        Q = releaseProportion  # proportion to release
-
-        norm = self.n * self.epochs if needNormalization else 1
-        paramNo = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
-        shareParams = Q * paramNo
-
-        # Privacy budgets for
-        e1 = eps1  # gradient query
-        e3 = eps3  # answer
-        e2 = e1 * ((2 * shareParams * s) ** (2 / 3))  # threshold
-
-        paramTuples = zip(nn.utils.parameters_to_vector(self.model.parameters()),
-                          nn.utils.parameters_to_vector(self.untrainedModel.parameters()))
-        paramChangesArr = [abs(param.data - untrainedParam.data) for param, untrainedParam in paramTuples]
-
-        tau = percentile(paramChangesArr, Q * 100)
-        noisyThreshold = 0  # laplace.rvs(scale=(s / e2)) + tau
-
-        logPrint("NoisyThreshold: {}\t"
-                 "e1: {}\t"
-                 "e2: {}\t"
-                 "e3: {}\t"
-                 "shareParams: {}\t"
-                 "paramNo: {}\t"
-                 "".format(round(noisyThreshold, 3),
-                           round(e1, 3),
-                           round(e2, 3),
-                           round(e3, 3),
-                           round(shareParams, 3),
-                           round(paramNo, 3),
-                           ))
-
-        params = dict(self.model.named_parameters())
-        untrainedParams = dict(self.untrainedModel.named_parameters())
-        changeOfParams = dict()
-        releasedParams = dict()
-
-        for paramName, param in params.items():
-            # Compute params change normalised by iterations: dW = dW/N_local
-            paramChange = param.data - untrainedParams[paramName].data
-            normalised = paramChange / norm
-            changeOfParams[paramName] = normalised
-
-            # Initialize release parameters accumulator
-            releasedParams[paramName] = torch.clone(untrainedParams[paramName].data)
-
-        releaseParamsCount = 0
-        while releaseParamsCount < shareParams:
-            #  Randomly draw a gradient component by selecting
-            #  a random param and an random index of the param
-            paramName = random.choice(list(params.keys()))
-            paramSize = torch.tensor(params[paramName].size())
-            index = tuple((torch.rand(paramSize.size()) * (paramSize - 1)).to(torch.long))
-
-            # If not already selected for realise (i.e. value of accumulator param still equal
-            # to the aggregator broadcast model) proceed to check if above noisy threshold
-            paramNotReleasedYet = (releasedParams[paramName][index] == untrainedParams[paramName].data[index])
-            if paramNotReleasedYet:
-                paramChange = changeOfParams[paramName][index]
-                queryNoise = 0  # laplace.rvs(scale=(2 * shareParams * s / e1))
-                if needClip:
-                    noisyQuery = abs(clip(paramChange, -gamma, gamma)) + queryNoise
-                else:
-                    noisyQuery = abs(paramChange) + queryNoise
-
-                if noisyQuery >= noisyThreshold:
-                    answerNoise = 0  # laplace.rvs(scale=(shareParams * s / e3))
-                    if needClip:
-                        noisyChange = clip(paramChange + answerNoise, -gamma, gamma)
-                    else:
-                        noisyChange = paramChange + answerNoise
-
-                    denormalisedChange = noisyChange * norm
-                    modelNoisyParam = denormalisedChange + untrainedParams[paramName].data[index]
-                    releasedParams[paramName][index] = modelNoisyParam
-                    releaseParamsCount += 1
-
-                    if releaseParamsCount < 5:
-                        logPrint("Broadcast: {}\t"
-                                 "Trained: {}\t"
-                                 "Released: {}\t"
-                                 "QueryNoise: {}\t"
-                                 "AnswerNoise: {}\t"
-                                 "".format(untrainedParams[paramName].data[index],
-                                           params[paramName].data[index],
-                                           releasedParams[paramName].data[index],
-                                           round(queryNoise, 5),
-                                           round(answerNoise, 5)))
-                        sys.stdout.flush()
-
-        # Update client model
-        for paramName, param in params.items():
-            param.data.copy_(releasedParams[paramName].data)
-
-        logPrint("Privacy preserving for client{} in done.".format(self.id))
-
-    # Procedure for implementing differential privacy
     def __optimPrivacyPreserve(self, eps1=100, eps3=100, clipValue=0.1, releaseProportion=0.1,
                                needClip=False, needNormalization=False):
         # logPrint("Privacy preserving for client{} in process..".format(self.id))
+
 
         gamma = clipValue # gradient clipping value
         s = 2 * gamma  # sensitivity
@@ -294,10 +203,6 @@ class Client:
         paramArr = untrainedParamArr
         paramArr[releaseIndex][:shareParamsNo] += noisyFilteredChanges[:shareParamsNo]
         # logPrint("Privacy preserving for client{} done.".format(self.id))
-
-# TODO: (1) explore random seed examples;
-#       (3) try out different configurations params configs; plot them;
-#       (4)
 
 
 # In the future:

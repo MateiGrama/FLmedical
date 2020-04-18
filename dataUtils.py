@@ -2,12 +2,15 @@ import torch
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 
+from logger import logPrint
+
 __defaultClientDataSplitPercentage = torch.tensor([0.2, 0.10, 0.15, 0.15, 0.15, 0.15, 0.1])
 __defaultLabelsOfInterest = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
 
 def loadMNISTdata(percUsers=__defaultClientDataSplitPercentage,
                   labels=__defaultLabelsOfInterest):
+    logPrint("Loading MNIST...")
     percUsers = percUsers / percUsers.sum()
     userNo = percUsers.size(0)
 
