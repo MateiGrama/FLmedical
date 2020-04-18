@@ -267,7 +267,7 @@ class Client:
         releaseIndex = (noisyQuery >= noisyThreshold).to(self.device)
         filteredChanges = paramChanges[releaseIndex]
 
-        answerNoise = laplace.rvs(scale=(shareParamsNo * s / e3), size=sum(releaseIndex))
+        answerNoise = laplace.rvs(scale=(shareParamsNo * s / e3), size=torch.sum(releaseIndex).cpu())
         answerNoise = torch.tensor(answerNoise).to(self.device)
         if needClip:
             noisyFilteredChanges = clip(filteredChanges + answerNoise, -gamma, gamma)
@@ -279,17 +279,17 @@ class Client:
         if needNormalization:
             noisyFilteredChanges *= self.n * self.epochs
 
-        logPrint("Broadcast: {}\t"
-                 "Trained: {}\t"
-                 "Released: {}\t"
-                 "answerNoise: {}\t"
-                 "ReleasedChange: {}\t"
-                 "".format(untrainedParamArr[releaseIndex][0],
-                           paramArr[releaseIndex][0],
-                           untrainedParamArr[releaseIndex][0] + noisyFilteredChanges[0],
-                           answerNoise[0],
-                           noisyFilteredChanges[0]))
-        sys.stdout.flush()
+        # logPrint("Broadcast: {}\t"
+        #          "Trained: {}\t"
+        #          "Released: {}\t"
+        #          "answerNoise: {}\t"
+        #          "ReleasedChange: {}\t"
+        #          "".format(untrainedParamArr[releaseIndex][0],
+        #                    paramArr[releaseIndex][0],
+        #                    untrainedParamArr[releaseIndex][0] + noisyFilteredChanges[0],
+        #                    answerNoise[0],
+        #                    noisyFilteredChanges[0]))
+        # sys.stdout.flush()
 
         paramArr = untrainedParamArr
         paramArr[releaseIndex][:shareParamsNo] += noisyFilteredChanges[:shareParamsNo]

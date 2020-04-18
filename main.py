@@ -14,7 +14,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 classifier = classifierMNIST.Classifier
 
 # TRAINING PARAMETERS
-rounds = 20  # TOTAL NUMBER OF TRAINING ROUNDS
+rounds = 10  # TOTAL NUMBER OF TRAINING ROUNDS
 epochs = 10  # NUMBER OF EPOCHS RUN IN EACH CLIENT BEFORE SENDING BACK THE MODEL UPDATE
 batch_size = 200  # BATCH SIZE
 
@@ -133,7 +133,7 @@ def privacyPreservingByzClientMNISTExperiment():
 
 def privacyPreservingFewClientsMNISTExperiment():
     perc_users = torch.tensor([0.3, 0.25, 0.45])
-    labels = torch.tensor([0, 1, 2, 3, 4])
+    labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
     faulty = []
     malicious = []
     _testPrivacyPreservingAggregators(perc_users, labels, faulty, malicious)
@@ -171,6 +171,16 @@ def testBothAgg30ClientsMNISTExperiment():
     malicious = []
     _testBothAggregators(perc_users, labels, faulty, malicious)
 
+
+def testBothAgg30ByzClientsMNISTExperiment():
+    perc_users = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 10, 0.2, 0.2,
+                               ])
+    labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    faulty = [2, 10, 13]
+    malicious = [15, 18]
+    _testBothAggregators(perc_users, labels, faulty, malicious)
 
 def _testAggregators(perc_users, labels, faulty, malicious):
     errorsDict = dict()
@@ -241,4 +251,9 @@ logPrint("Experiment started.")
 # privacyPreserving30ClientsMNISTExperiment()
 # noByzClientMNISTExperiment()
 # noDP30ClientsMNISTExperiment()
-privacyPreserving30ClientsMNISTExperiment()
+# privacyPreserving30ClientsMNISTExperiment()
+testBothAgg30ClientsMNISTExperiment()
+# testBothAgg30ByzClientsMNISTExperiment()
+# byzClientMNISTExperiment()
+
+# privacyPreservingFewClientsMNISTExperiment()
