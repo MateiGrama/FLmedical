@@ -211,7 +211,7 @@ class Client:
                                needClip=False, needNormalization=False):
         logPrint("Privacy preserving for client{} in process..".format(self.id))
 
-        gamma = torch.tensor(clipValue).to(self.device) # gradient clipping value
+        gamma = clipValue # gradient clipping value
         s = 2 * gamma  # sensitivity
         Q = releaseProportion  # proportion to release
 
