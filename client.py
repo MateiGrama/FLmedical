@@ -209,7 +209,7 @@ class Client:
     # Procedure for implementing differential privacy
     def __optimPrivacyPreserve(self, eps1=100, eps3=100, clipValue=0.1, releaseProportion=0.1,
                                needClip=False, needNormalization=False):
-        logPrint("Privacy preserving for client{} in process..".format(self.id))
+        # logPrint("Privacy preserving for client{} in process..".format(self.id))
 
         gamma = clipValue # gradient clipping value
         s = 2 * gamma  # sensitivity
