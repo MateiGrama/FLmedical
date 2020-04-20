@@ -1,3 +1,8 @@
+from experiment.DefaultExperimentConfiguration import DefaultExperimentConfiguration
+from classifiers import classifierMNIST
+from dataUtils import loadMNISTdata
+from logger import logPrint
+
 import random
 import time
 
@@ -6,42 +11,8 @@ import numpy as np
 import torch
 
 import aggregator as agg
-import classifierMNIST
 from client import Client
 from itertools import product
-from dataUtils import loadMNISTdata
-from logger import logPrint
-
-
-class ExperimentConfiguration:
-    def __init__(self):
-        # DEFAULT PARAMETERS
-
-        # Federated learning parameters
-        self.rounds = 35  # Total number of training rounds
-        self.epochs = 10  # Epochs num locally run by clients before sending back the model update
-        self.batchSize = 200  # Local training  batch size
-
-        # Clients setup
-        self.percUsers = torch.tensor([0.2, 0.10, 0.15, 0.15, 0.15, 0.15, 0.1])  # Client data partition
-        self.labels = torch.tensor(range(10))  # Considered dataset labels
-        self.faulty = []  # List of noisy clients
-        self.flipping = []  # List of (malicious) clients with flipped labels
-
-        # Client privacy preserving module setup
-        self.privacyPreserve = False  # if None, run with AND without DP
-        self.releaseProportion = 0.1
-        self.epsilon1 = 1
-        self.epsilon3 = 1
-        self.needClip = False
-        self.clipValue = 0.01
-        self.needNormalization = False
-
-        self.aggregators = agg.FAandAFA()  # Aggregation strategies
-
-        self.plotResults = False
-
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def __experimentOnMNIST(config):
@@ -158,14 +129,14 @@ def experiment(exp):
 
 @experiment
 def noDP_noByzClient_onMNIST():
-    configuration = ExperimentConfiguration()
+    configuration = DefaultExperimentConfiguration()
 
     __experimentOnMNIST(configuration)
 
 
 @experiment
 def withDP_withByzClient_onMNIST():
-    configuration = ExperimentConfiguration()
+    configuration = DefaultExperimentConfiguration()
 
     configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1])
     configuration.labels = torch.tensor([0, 2, 5, 8])
@@ -177,7 +148,7 @@ def withDP_withByzClient_onMNIST():
 
 @experiment
 def withDP_noByzClient_onMNIST():
-    configuration = ExperimentConfiguration()
+    configuration = DefaultExperimentConfiguration()
 
     configuration.labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
     configuration.faulty = []
@@ -189,7 +160,7 @@ def withDP_noByzClient_onMNIST():
 
 @experiment
 def withAndWithoutDP_noByzClient_onMNIST():
-    configuration = ExperimentConfiguration()
+    configuration = DefaultExperimentConfiguration()
 
     configuration.privacyPreserve = None
 
@@ -198,7 +169,7 @@ def withAndWithoutDP_noByzClient_onMNIST():
 
 @experiment
 def withDP_withByzClient_onMNIST():
-    configuration = ExperimentConfiguration()
+    configuration = DefaultExperimentConfiguration()
 
     configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1])
     configuration.labels = torch.tensor([0, 2, 5, 8])
@@ -211,7 +182,7 @@ def withDP_withByzClient_onMNIST():
 
 @experiment
 def withDP_fewNotByzClient_onMNIST():
-    configuration = ExperimentConfiguration()
+    configuration = DefaultExperimentConfiguration()
 
     configuration.percUsers = torch.tensor([0.3, 0.25, 0.45])
     configuration.labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
@@ -222,7 +193,7 @@ def withDP_fewNotByzClient_onMNIST():
 
 @experiment
 def noDP_30notByzClients_onMNIST():
-    configuration = ExperimentConfiguration()
+    configuration = DefaultExperimentConfiguration()
 
     configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                                             0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
@@ -233,7 +204,7 @@ def noDP_30notByzClients_onMNIST():
 
 @experiment
 def withDP_30Clients_onMNIST():
-    configuration = ExperimentConfiguration()
+    configuration = DefaultExperimentConfiguration()
 
     configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                                             0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
@@ -245,7 +216,7 @@ def withDP_30Clients_onMNIST():
 
 @experiment
 def withAndWithoutDP_30notByzClients_onMNIST():
-    configuration = ExperimentConfiguration()
+    configuration = DefaultExperimentConfiguration()
 
     configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                                             0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
@@ -257,7 +228,7 @@ def withAndWithoutDP_30notByzClients_onMNIST():
 
 @experiment
 def withAndWithoutDP_30withByzClients_onMNIST():
-    configuration = ExperimentConfiguration()
+    configuration = DefaultExperimentConfiguration()
 
     configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                                             0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
@@ -271,7 +242,7 @@ def withAndWithoutDP_30withByzClients_onMNIST():
 
 @experiment
 def noDP_noByzClient_fewRounds_onMNIST():
-    configuration = ExperimentConfiguration()
+    configuration = DefaultExperimentConfiguration()
     configuration.rounds = 3
     configuration.plotResults = True
     __experimentOnMNIST(configuration)
@@ -290,7 +261,7 @@ def withMultipleDPconfigsAndWithout_30notByzClients():
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
     # Without DP
-    noDPconfig = ExperimentConfiguration()
+    noDPconfig = DefaultExperimentConfiguration()
     noDPconfig.aggregators = agg.allAggregators()
     noDPconfig.percUsers = percUsers
     __experimentOnMNIST(noDPconfig)
@@ -300,7 +271,7 @@ def withMultipleDPconfigsAndWithout_30notByzClients():
                           needNormalise, releaseProportion):
         needClip, clipValues, epsilon1, epsilon3, needNormalise, releaseProportion = config
 
-        expConfig = ExperimentConfiguration()
+        expConfig = DefaultExperimentConfiguration()
         expConfig.percUsers = percUsers
         expConfig.aggregators = agg.allAggregators()
 
