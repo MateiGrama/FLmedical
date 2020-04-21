@@ -1,6 +1,6 @@
 from experiment.DefaultExperimentConfiguration import DefaultExperimentConfiguration
-from classifiers import classifierMNIST
-from dataUtils import loadMNISTdata
+from classifiers import MNIST
+from dataLoaders.dataUtils import DataLoaderMNIST
 from logger import logPrint
 
 import random
@@ -10,14 +10,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-import aggregator as agg
+import aggregators as agg
 from client import Client
 from itertools import product
 
 
 def __experimentOnMNIST(config):
-    dataLoader = loadMNISTdata
-    classifier = classifierMNIST.Classifier
+    dataLoader = DataLoaderMNIST().loadData
+    classifier = MNIST.Classifier
+    __experimentSetup(config, dataLoader, classifier)
+
+
+def __experimentSetup(config, dataLoader, classifier):
     errorsDict = dict()
     for aggregator in config.aggregators:
         if config.privacyPreserve is not None:

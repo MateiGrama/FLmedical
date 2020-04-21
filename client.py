@@ -104,7 +104,7 @@ class Client:
 
         if self.useDifferentialPrivacy:
             # self.__privacyPreserve()
-            self.__optimPrivacyPreserve()
+            self.__privacyPreserve()
         return self.model
 
     # Function to manipulate the model for byzantine adversaries
@@ -115,12 +115,11 @@ class Client:
             param.data.copy_(param.data + noise)
 
     # Procedure for implementing differential privacy
-    def __optimPrivacyPreserve(self, eps1=100, eps3=100, clipValue=0.1, releaseProportion=0.1,
-                               needClip=False, needNormalization=False):
+    def __privacyPreserve(self, eps1=100, eps3=100, clipValue=0.1, releaseProportion=0.1,
+                          needClip=False, needNormalization=False):
         # logPrint("Privacy preserving for client{} in process..".format(self.id))
 
-
-        gamma = clipValue # gradient clipping value
+        gamma = clipValue  # gradient clipping value
         s = 2 * gamma  # sensitivity
         Q = releaseProportion  # proportion to release
 
@@ -203,7 +202,6 @@ class Client:
         paramArr = untrainedParamArr
         paramArr[releaseIndex][:shareParamsNo] += noisyFilteredChanges[:shareParamsNo]
         # logPrint("Privacy preserving for client{} done.".format(self.id))
-
 
 # In the future:
 # different number of epochs for different clients

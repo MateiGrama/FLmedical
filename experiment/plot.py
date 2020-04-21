@@ -1,5 +1,5 @@
 from experiment.DefaultExperimentConfiguration import DefaultExperimentConfiguration
-import aggregator
+import aggregators
 
 import plotly.graph_objects as go
 from datetime import datetime
@@ -63,7 +63,7 @@ clipValues = {0.01, 0.0001}
 needClip = {False, True}
 needNormalise = {False, True}
 aggregators = [a.__name__.replace("Aggregator", "")
-               for a in aggregator.allAggregators()]
+               for a in aggregators.allAggregators()]
 
 DPconfigs = list(product({True}, needClip, clipValues, epsilon1, epsilon3,
                          needNormalise, releaseProportion, aggregators))

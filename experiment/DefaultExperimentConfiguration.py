@@ -1,7 +1,6 @@
 import torch
-from torch import __init__
 
-import aggregator as agg
+import aggregators as agg
 
 
 class DefaultExperimentConfiguration:

@@ -1,14 +1,13 @@
 import copy
 import sys
-
+import numpy as np
+from scipy.stats import beta
+from torch import nn
 from logger import logPrint
 from threading import Thread
-from scipy.stats import beta
 from sklearn.metrics import confusion_matrix
 
 import torch
-import torch.nn as nn
-import numpy as np
 
 
 class Aggregator:
@@ -209,6 +208,7 @@ class MKRUMAggregator(Aggregator):
 class AFAAggregator(Aggregator):
 
     def trainAndTest(self, xTest, yTest):
+
         # List of malicious users blocked
         maliciousBlocked = []
         # List with the iteration where a malicious user was blocked
@@ -221,6 +221,7 @@ class AFAAggregator(Aggregator):
         roundsError = torch.zeros(self.rounds)
 
         for r in range(self.rounds):
+
             logPrint("Round... ", r)
 
             for client in self.clients:
