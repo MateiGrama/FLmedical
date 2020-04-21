@@ -22,7 +22,8 @@ class ExpResult(object):
 default = DefaultExperimentConfiguration()
 
 # OUTPUT LOG PARSING
-file = open("experiment/manyDPconfigs.log", "r")
+fileName = "experiment"
+file = open("experiment/{}.log".format(fileName), "r")
 results = []
 currentName = None
 currentStart = None
@@ -71,12 +72,17 @@ noDPconfig = [(False, default.needClip, default.clipValue, default.epsilon1, def
                default.needNormalization, default.releaseProportion, agg) for agg in aggregators]
 configs = noDPconfig + DPconfigs
 
+
 # Plotting given experiment results
 
-# Workaround until all experiments results come :
-configs = configs[:len(results)]
-# Only this is needed when len(configs) == len(results)
+# For incomplete log files:
+configs = configs[:len(results)]  # Can be removed when there's an run result for each configuration
 experiments = dict(zip(configs, results))
+
+# Maybe one day
+# jsonFile = open("{}.json".format(fileName), "w")
+# jsonFile.write(json.dumps(experiments, indent=2))
+# sys.exit()
 
 # If needed FILTERING can be performed here by removing from experiments from the dictionary
 casesToPlot = list(product({False, True},  # use DP
@@ -86,10 +92,13 @@ casesToPlot = list(product({False, True},  # use DP
                            {1, 0.01, 0.0001},  # epsilon3
                            {False, True},  # need normalisation
                            {0.1, 0.4},  # release proportion
-                           ["FA", "COMED", "MKRUM", "AFA"]))  # aggrgators
+                           ["FA", "COMED", "MKRUM", "AFA"]))  # aggregator
+plotBloking = False
 
 for config in list(experiments):
     if config not in casesToPlot:
+        del experiments[config]
+    if plotBloking and not experiments[config].blocked:
         del experiments[config]
 
 # Create figure
@@ -103,16 +112,19 @@ for config, exp in experiments.items():
         configName += "Q:{};".format(release)
         configName += "e1:{};".format(e1)
         configName += "e3:{};".format(e3)
-        configName += "clip{};".format(needClip)
-        configName += "gamma{}".format(clip)
+        configName += "clip:{};".format(needClip)
+        configName += "gamma:{};".format(clip)
+        configName += "norm:{};".format(normalise)
     else:
-        configName = "{} without DP".format(exp.name)
+        configName = "{} without DP;".format(exp.name)
 
     transparent = 'rgba(0, 0, 0, 0)'
     markerColors = np.full(default.rounds, transparent, dtype=object)
     hoverText = np.full(default.rounds, None, dtype=object)
     if exp.blocked:
+        configName += "Blocked:"
         for blockRound, client in exp.blocked:
+            configName += "{};".format(client)
             hoverText[blockRound] = "{} blocked {} at round {}".format(exp.name, blockRound, client)
             markerColors[blockRound] = 'firebrick'
 
@@ -130,7 +142,7 @@ for config, exp in experiments.items():
 
 annotations = [dict(xref='paper', yref='paper', x=0.0, y=1.05,
                     xanchor='left', yanchor='bottom',
-                    text='Different DP configurations; no Byzantine clients',
+                    text='{} DP configurations; no Byzantine clients'.format(len(experiments)),
                     font=dict(family='Arial',
                               size=30,
                               color='rgba(20,20,20,0.5)'),
