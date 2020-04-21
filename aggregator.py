@@ -1,28 +1,24 @@
 import copy
+import sys
+
+from logger import logPrint
 from threading import Thread
+from scipy.stats import beta
+from sklearn.metrics import confusion_matrix
 
 import torch
 import torch.nn as nn
 import numpy as np
 
-from scipy.stats import beta
-
-from sklearn.metrics import confusion_matrix
-
-from logger import logPrint
-
 
 class Aggregator:
-    def __init__(self, clients, model, rounds, device,
-                 useAsyncClients=True, useDifferentialPrivacy=False):
-        self.model = model
-        self.rounds = rounds
+    def __init__(self, clients, model, rounds, device, useAsyncClients=False):
+        self.model = model.to(device)
         self.clients = clients
-
-        self.useAsyncClients = useAsyncClients
-        self.useDifferentialPrivacy = useDifferentialPrivacy
+        self.rounds = rounds
 
         self.device = device
+        self.useAsyncClients = useAsyncClients
 
     def trainAndTest(self, xTest, yTest):
         raise Exception("Train method should be override by child class, "
@@ -51,7 +47,7 @@ class Aggregator:
         for client in self.clients:
             # If client blocked return an the unchanged version of the model
             if not client.blocked:
-                models[client] = client.retrieveModel(self.useDifferentialPrivacy)
+                models[client] = client.retrieveModel()
             else:
                 models[client] = client.model
         return models
@@ -63,6 +59,7 @@ class Aggregator:
         mconf = confusion_matrix(yTest.to("cpu"), Ypred.to("cpu"))
         errors = 1 - 1.0 * mconf.diagonal().sum() / xTest.size(0)
         logPrint("Error Rate: ", round(100.0 * errors, 3), "%")
+        sys.stdout.flush()
         return errors
 
     # Function for computing predictions
@@ -98,7 +95,7 @@ class FAAggregator(Aggregator):
             # Merge models
             comb = 0.0
             for client in self.clients:
-                self._mergeModels(models[client], self.model, client.p, comb)
+                self._mergeModels(models[client].to(self.device), self.model.to(self.device), client.p, comb)
                 comb = 1.0
 
             roundsError[r] = self.test(xTest, yTest)
@@ -146,7 +143,6 @@ class COMEDAggregator(Aggregator):
         return modelCopy.to(self.device)
 
 
-# MULTI-KRUM
 class MKRUMAggregator(Aggregator):
 
     def trainAndTest(self, xTest, yTest):
@@ -185,7 +181,7 @@ class MKRUMAggregator(Aggregator):
             comb = 0.0
             for client in self.clients:
                 if client.id in selected_users:
-                    self._mergeModels(models[client], self.model, 1 / mk, comb)
+                    self._mergeModels(models[client].to(self.device), self.model.to(self.device), 1 / mk, comb)
                     comb = 1.0
 
             roundsError[r] = self.test(xTest, yTest)
@@ -251,7 +247,8 @@ class AFAAggregator(Aggregator):
                 comb = 0.0
                 for client in self.clients:
                     if self.notBlockedNorBadUpdate(client):
-                        self._mergeModels(models[client], self.model, client.pEpoch, comb)
+                        self._mergeModels(models[client].to(self.device), self.model.to(self.device), client.pEpoch,
+                                          comb)
                         comb = 1.0
 
                 sim = []
@@ -328,7 +325,7 @@ class AFAAggregator(Aggregator):
             comb = 0.0
             for client in self.clients:
                 if self.notBlockedNorBadUpdate(client):
-                    self._mergeModels(models[client], self.model, client.pEpoch, comb)
+                    self._mergeModels(models[client].to(self.device), self.model.to(self.device), client.pEpoch, comb)
                     comb = 1.0
 
             # Reset badUpdate variable
@@ -383,5 +380,10 @@ class AFAAggregator(Aggregator):
         return client.blocked == False | client.badUpdate == False
 
 
-aggregators = Aggregator.__subclasses__()
-aggregators = [FAAggregator]
+def allAggregators():
+    return Aggregator.__subclasses__()
+
+
+# FederatedAveraging and Adaptive Federated Averaging
+def FAandAFA():
+    return [FAAggregator, AFAAggregator]

@@ -1,8 +1,10 @@
+FedLrn
 out/
 test.py
 .DS_Store
 .idea/*
 data
+.nfs*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
