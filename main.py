@@ -1,23 +1,27 @@
 from experiment.DefaultExperimentConfiguration import DefaultExperimentConfiguration
-from classifiers import MNIST
-from dataLoaders.dataUtils import DataLoaderMNIST
+from dataLoaders.dataUtils import DataLoaderMNIST, DataLoaderCOVIDx
+from classifiers import MNIST, CovidNet
 from logger import logPrint
-
-import random
-import time
+from client import Client
+import aggregators as agg
 
 import matplotlib.pyplot as plt
-import numpy as np
-import torch
-
-import aggregators as agg
-from client import Client
 from itertools import product
+import numpy as np
+import random
+import torch
+import time
 
 
 def __experimentOnMNIST(config):
     dataLoader = DataLoaderMNIST().loadData
     classifier = MNIST.Classifier
+    __experimentSetup(config, dataLoader, classifier)
+
+
+def __experimentOnCONVIDx(config):
+    dataLoader = DataLoaderCOVIDx().loadData
+    classifier = CovidNet  # .Classifier
     __experimentSetup(config, dataLoader, classifier)
 
 
@@ -290,4 +294,11 @@ def withMultipleDPconfigsAndWithout_30notByzClients():
         __experimentOnMNIST(expConfig)
 
 
-withMultipleDPconfigsAndWithout_30notByzClients()
+@experiment
+def noDP_noByzClient_onCOVIDx():
+    configuration = DefaultExperimentConfiguration()
+
+    __experimentOnCONVIDx(configuration)
+
+
+noDP_noByzClient_onCOVIDx()
