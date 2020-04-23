@@ -15,7 +15,7 @@ from logger import logPrint
 class Client:
     """ An internal representation of a client """
 
-    def __init__(self, epochs, batchSize, x, y, p, idx, device, useDifferentialPrivacy,
+    def __init__(self, epochs, batchSize, learningRate, x, y, p, idx, device, useDifferentialPrivacy,
                  releaseProportion, epsilon1, epsilon3, needClip, clipValue, needNormalization,
                  byzantine=None, flipping=None, model=None, alpha=3.0, beta=3.0):
 
@@ -43,7 +43,7 @@ class Client:
         self.epochs = epochs
         self.batchSize = batchSize
 
-        self.learningRate = 0.1
+        self.learningRate = learningRate
         self.momentum = 0.9
 
         # AFA Client params
@@ -80,6 +80,8 @@ class Client:
                 x = self.xTrain[iBatch:iBatch + self.batchSize, :].to(self.device)
                 y = self.yTrain[iBatch:iBatch + self.batchSize].to(self.device)
                 err, pred = self._trainClassifier(x, y)
+                logPrint("Client:{}; Epoch{}; Batch:{}; \tError:{}"
+                         "".format(self.id, i + 1, iBatch / self.batchSize + 1, err))
         return err, pred
 
     # Function to train the classifier

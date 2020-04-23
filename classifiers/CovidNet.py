@@ -64,9 +64,9 @@ class PEXP(nn.Module):
         return self.network(x)
 
 
-class CovidNet(nn.Module):
+class Classifier(nn.Module):
     def __init__(self, model='small', n_classes=3):
-        super(CovidNet, self).__init__()
+        super(Classifier, self).__init__()
         filters = {
             'pexp1_1': [64, 256],
             'pexp1_2': [256, 256],
@@ -191,39 +191,3 @@ class CovidNet(nn.Module):
         logits = self.classifier(fc2out)
         return logits
 
-
-'''
- FORWARD ONLY WITH SKIP CONNECTIONS
-
-    def forward(self, x):
-        x = self.pool1(self.conv1(x))
-        out_conv1_1x1 = self.conv1_1x1(x)
-
-        pepx11 = self.pexp1_1(x)
-        pepx12 = self.pexp1_2(pepx11)
-        pepx13 = self.pexp1_3(pepx12 + pepx11)
-
-        pepx21 = self.pexp2_1(F.max_pool2d(pepx13, 2) + F.max_pool2d(pepx11, 2) + F.max_pool2d(pepx12, 2))
-        pepx22 = self.pexp2_2(pepx21)
-        pepx23 = self.pexp2_3(pepx22 + pepx21)
-        pepx24 = self.pexp2_4(pepx23 + pepx21 + pepx22)
-
-        pepx31 = self.pexp3_1(F.max_pool2d(pepx24, 2) + F.max_pool2d(pepx21, 2) + F.max_pool2d(pepx22,2) + F.max_pool2d(pepx23, 2))
-        pepx32 = self.pexp3_2(pepx31)
-        pepx33 = self.pexp3_3(pepx31 + pepx32)
-        pepx34 = self.pexp3_4(pepx31 + pepx32 + pepx33)
-        pepx35 = self.pexp3_5(pepx31 + pepx32 + pepx33 + pepx34)
-        pepx36 = self.pexp3_6(pepx31 + pepx32 + pepx33 + pepx34 + pepx35)
-
-        pepx41 = self.pexp4_1(F.max_pool2d(pepx31, 2) + F.max_pool2d(pepx32, 2) + F.max_pool2d(pepx32, 2) + F.max_pool2d(pepx34, 2)+ F.max_pool2d(pepx35, 2)+ F.max_pool2d(pepx36, 2))
-        pepx42 = self.pexp4_2(pepx41)
-        pepx43 = self.pexp4_3(pepx41 + pepx42)
-        flattened = self.flatten(pepx41 + pepx42 + pepx43)
-
-        fc1out = self.fc1(flattened)
-        fc2out = self.fc2(fc1out)
-        logits = self.classifier(fc2out)
-        return x
-
-
-'''

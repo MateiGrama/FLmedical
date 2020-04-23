@@ -11,6 +11,10 @@ class DefaultExperimentConfiguration:
         self.rounds = 35  # Total number of training rounds
         self.epochs = 10  # Epochs num locally run by clients before sending back the model update
         self.batchSize = 200  # Local training  batch size
+        self.learningRate = 0.1
+
+        # Big datasets size tuning param: (trainSize, testSize); (None, None) interpreted as full dataset
+        self.datasetSize = (None, None)
 
         # Clients setup
         self.percUsers = torch.tensor([0.2, 0.10, 0.15, 0.15, 0.15, 0.15, 0.1])  # Client data partition

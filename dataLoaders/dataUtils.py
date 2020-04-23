@@ -17,12 +17,12 @@ from logger import logPrint
 class DataLoader:
     """Abstract class used for specifying the data loading workflow """
 
-    def loadData(self, percUsers, labels):
+    def loadData(self, percUsers, labels, size=(None, None)):
         raise Exception("LoadData method should be override by child class, "
                         "specific to the loaded dataset strategy.")
 
     @staticmethod
-    def _filterByLabelAndShuffle(labels, xTrn, xTst, yTrn, yTst):
+    def _filterByLabelAndShuffle(labels, xTrn, yTrn, xTst, yTst):
         xTrain = torch.tensor([])
         xTest = torch.tensor([])
         yTrain = torch.tensor([], dtype=torch.long)
@@ -30,11 +30,11 @@ class DataLoader:
         # Extract the entries corresponding to the labels passed as param
         for e in labels:
             idx = (yTrn == e)
-            xTrain = torch.cat((xTrain, xTrn[idx, :]), dim=0)
+            xTrain = torch.cat((xTrain, xTrn[idx]), dim=0)
             yTrain = torch.cat((yTrain, yTrn[idx]), dim=0)
 
             idx = (yTst == e)
-            xTest = torch.cat((xTest, xTst[idx, :]), dim=0)
+            xTest = torch.cat((xTest, xTst[idx]), dim=0)
             yTest = torch.cat((yTest, yTst[idx]), dim=0)
         # Shuffle
         r = torch.randperm(xTrain.size(0))
@@ -43,7 +43,7 @@ class DataLoader:
         return xTrain, yTrain, xTest, yTest
 
     @staticmethod
-    def _splitTrainData(percUsers, xTest, xTrain, yTest, yTrain):
+    def _splitTrainData(percUsers, xTrain, yTrain, xTest, yTest):
         percUsers = percUsers / percUsers.sum()
         userNo = percUsers.size(0)
 
@@ -61,27 +61,15 @@ class DataLoader:
 
         return training_data, training_labels, xTest, yTest
 
-    def _readFilePaths(file):
-        paths, labels = [], []
-        with open(file, 'r') as f:
-            lines = f.read().splitlines()
-            for idx, line in enumerate(lines):
-                if '/ c o' in line:
-                    break
-                subjid, path, label = line.split(' ')
-                paths.append(path)
-                labels.append(label)
-        return paths, labels
-
 
 class DataLoaderMNIST(DataLoader):
 
-    def loadData(self, percUsers, labels):
+    def loadData(self, percUsers, labels, size=None):
         logPrint("Loading MNIST...")
         data = self.__loadMNISTdata()
         xTrain, yTrain, xTest, yTest = self._filterByLabelAndShuffle(labels, *data)
         # Splitting data to users corresponding to user percentage param
-        return self._splitTrainData(percUsers, xTest, xTrain, yTest, yTrain)
+        return self._splitTrainData(percUsers, xTest, yTest, xTrain, yTrain)
 
     @staticmethod
     def __loadMNISTdata():
@@ -146,21 +134,19 @@ class DataLoaderCOVIDx(DataLoader):
     def __init__(self, dim=(224, 224), assembleDatasets=True):
         self.assembleDatasets = assembleDatasets
         self.dim = dim
-
-        self.COVIDxLabelsDict = {'pneumonia': 0, 'normal': 1, 'COVID-19': 2}
-
         self.dataPath = './data/COVIDx'
         self.testFile = self.dataPath + '/test_split_v2.txt'
         self.trainFile = self.dataPath + '/train_split_v2.txt'
+        self.COVIDxLabelsDict = {'pneumonia': 0, 'normal': 1, 'COVID-19': 2}
 
-    def loadData(self, percUsers, labels):
+    def loadData(self, percUsers, labels, size=None):
         logPrint("Loading COVIDx...")
-        data = self.__loadCOVIDxData()
+        data = self.__loadCOVIDxData(*size)
         xTrain, yTrain, xTest, yTest = self._filterByLabelAndShuffle(labels, *data)
         # Splitting data to users corresponding to user percentage param
-        return self._splitTrainData(percUsers, xTest, xTrain, yTest, yTrain)
+        return self._splitTrainData(percUsers, xTrain, yTrain, xTest, yTest,)
 
-    def __loadCOVIDxData(self):
+    def __loadCOVIDxData(self, trainSize, testSize):
         if self.__datasetNotFound():
             logPrint("Can't find train|test split .txt files or "
                      "/train, /test files not populated accordingly.")
@@ -172,19 +158,25 @@ class DataLoaderCOVIDx(DataLoader):
 
         trainPaths, trainLabels = self.__readFilePaths(self.trainFile)
         testPaths, testLabels = self.__readFilePaths(self.testFile)
-        trainSize = len(trainPaths)
-        testSize = len(testPaths)
+
+        if not trainSize:
+            trainSize = len(trainPaths)
+        if not testSize:
+            testSize = len(testPaths)
 
         xTrain = torch.tensor([])
         xTest = torch.tensor([])
         yTrain = torch.tensor([], dtype=torch.long)
         yTest = torch.tensor([], dtype=torch.long)
 
+        logPrint("Loading train images. ({} images)".format(trainSize))
         for i in range(trainSize):
             imageTensor = self.__load_image(self.dataPath + '/train/' + trainPaths[i], self.dim)
             xTrain = torch.cat((xTrain, torch.unsqueeze(imageTensor, dim=0)), dim=0)
             labelTensor = torch.tensor(self.COVIDxLabelsDict[trainLabels[i]])
             yTrain = torch.cat((yTrain, torch.unsqueeze(labelTensor, dim=0)), dim=0)
+
+        logPrint("Loading test images. ({} images)".format(testSize))
         for i in range(testSize):
             imageTensor = self.__load_image(self.dataPath + '/test/' + testPaths[i], self.dim)
             xTest = torch.cat((xTest, torch.unsqueeze(imageTensor, dim=0)), dim=0)

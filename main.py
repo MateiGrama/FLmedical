@@ -1,6 +1,6 @@
 from experiment.DefaultExperimentConfiguration import DefaultExperimentConfiguration
 from dataLoaders.dataUtils import DataLoaderMNIST, DataLoaderCOVIDx
-from classifiers import MNIST, CovidNet
+from classifiers import MNIST, CovidNet, CNN
 from logger import logPrint
 from client import Client
 import aggregators as agg
@@ -15,13 +15,20 @@ import time
 
 def __experimentOnMNIST(config):
     dataLoader = DataLoaderMNIST().loadData
-    classifier = MNIST.Classifier
+    classifier = MNIST.Classifier()
     __experimentSetup(config, dataLoader, classifier)
 
 
-def __experimentOnCONVIDx(config):
+def __experimentOnCONVIDx(config, model='COVIDNet_small'):
     dataLoader = DataLoaderCOVIDx().loadData
-    classifier = CovidNet  # .Classifier
+    if model == 'COVIDNet_small':
+        classifier = CovidNet.Classifier('small')
+    elif model == 'COVIDNet_large':
+        classifier = CovidNet.Classifier('large')
+    elif model == 'resnet18':
+        classifier = CNN.Classifier(classes=3, model='resnet18')
+    else:
+        raise Exception("Invalid Covid model name.")
     __experimentSetup(config, dataLoader, classifier)
 
 
@@ -55,14 +62,14 @@ def __experimentSetup(config, dataLoader, classifier):
 
 
 def __runExperiment(config, dataLoader, classifier, aggregator, useDifferentialPrivacy):
-    training_data, training_labels, xTest, yTest = dataLoader(config.percUsers, config.labels)
-    clients = __initClients(config, training_data, training_labels)
-    model = classifier().to(config.device)
+    trainingData, trainingLabels, xTest, yTest = dataLoader(config.percUsers, config.labels, config.datasetSize)
+    clients = __initClients(config, trainingData, trainingLabels, useDifferentialPrivacy)
+    model = classifier.to(config.device)
     aggregator = aggregator(clients, model, config.rounds, config.device)
     return aggregator.trainAndTest(xTest, yTest)
 
 
-def __initClients(config, training_data, training_labels):
+def __initClients(config, trainingData, trainingLabels, useDifferentialPrivacy):
     usersNo = config.percUsers.size(0)
     p0 = 1 / usersNo
     # Seed
@@ -70,13 +77,14 @@ def __initClients(config, training_data, training_labels):
     clients = []
     for i in range(usersNo):
         clients.append(Client(idx=i + 1,
-                              x=training_data[i],
-                              y=training_labels[i],
+                              x=trainingData[i],
+                              y=trainingLabels[i],
                               p=p0,
                               epochs=config.epochs,
                               batchSize=config.batchSize,
+                              learningRate=config.learningRate,
                               device=config.device,
-                              useDifferentialPrivacy=config.privacyPreserve,
+                              useDifferentialPrivacy=useDifferentialPrivacy,
                               epsilon1=config.epsilon1,
                               epsilon3=config.epsilon3,
                               needClip=config.needClip,
@@ -295,10 +303,14 @@ def withMultipleDPconfigsAndWithout_30notByzClients():
 
 
 @experiment
-def noDP_noByzClient_onCOVIDx():
+def noDP_singleClient_onCOVIDx_100train11test():
     configuration = DefaultExperimentConfiguration()
-
+    configuration.percUsers = torch.tensor([1.])
+    configuration.datasetSize = (100, 11)
+    configuration.batchSize = 20
+    configuration.epochs = 3
+    configuration.learningRate = 0.0002
     __experimentOnCONVIDx(configuration)
 
 
-noDP_noByzClient_onCOVIDx()
+noDP_singleClient_onCOVIDx_100train11test()
