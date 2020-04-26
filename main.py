@@ -252,7 +252,8 @@ def withAndWithoutDP_30withByzClients_onMNIST():
     configuration.faulty = [2, 10, 13]
     configuration.malicious = [15, 18]
     configuration.privacyPreserve = None
-
+    configuration.rounds = 7
+    configuration.plotResults = True
     __experimentOnMNIST(configuration)
 
 
@@ -313,4 +314,6 @@ def noDP_singleClient_onCOVIDx_100train11test():
     __experimentOnCONVIDx(configuration)
 
 
-noDP_singleClient_onCOVIDx_100train11test()
+# noDP_singleClient_onCOVIDx_100train11test()
+
+withAndWithoutDP_30withByzClients_onMNIST()

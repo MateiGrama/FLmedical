@@ -61,6 +61,25 @@ class DataLoader:
 
         return training_data, training_labels, xTest, yTest
 
+    @staticmethod
+    def _splitTrainDataIndex(percUsers, xTrain, yTrain, xTest, yTest):
+        percUsers = percUsers / percUsers.sum()
+        userNo = percUsers.size(0)
+
+        ntr_users = (percUsers * xTrain.size(0)).floor().numpy()
+
+        training_data = []
+        training_labels = []
+        it = 0
+        for i in range(userNo):
+            x = xTrain[it:it + int(ntr_users[i]), :].clone().detach()
+            y = yTrain[it:it + int(ntr_users[i])].clone().detach()
+            training_data.append(x)
+            training_labels.append(y)
+            it = it + int(ntr_users[i])
+
+        return training_data, training_labels, xTest, yTest
+
 
 class DataLoaderMNIST(DataLoader):
 

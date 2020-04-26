@@ -80,8 +80,8 @@ class Client:
                 x = self.xTrain[iBatch:iBatch + self.batchSize, :].to(self.device)
                 y = self.yTrain[iBatch:iBatch + self.batchSize].to(self.device)
                 err, pred = self._trainClassifier(x, y)
-                logPrint("Client:{}; Epoch{}; Batch:{}; \tError:{}"
-                         "".format(self.id, i + 1, iBatch / self.batchSize + 1, err))
+                # logPrint("Client:{}; Epoch{}; Batch:{}; \tError:{}"
+                #          "".format(self.id, i + 1, iBatch / self.batchSize + 1, err))
         return err, pred
 
     # Function to train the classifier

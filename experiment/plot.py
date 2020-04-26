@@ -92,8 +92,9 @@ casesToPlot = list(product({False, True},  # use DP
                            {1, 0.01, 0.0001},  # epsilon3
                            {False, True},  # need normalisation
                            {0.1, 0.4},  # release proportion
+                           #["AFA"]))
                            ["FA", "COMED", "MKRUM", "AFA"]))  # aggregator
-plotBloking = False
+plotBloking = True
 
 for config in list(experiments):
     if config not in casesToPlot:
