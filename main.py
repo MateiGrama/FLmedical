@@ -62,7 +62,10 @@ def __experimentSetup(config, dataLoader, classifier):
 
 
 def __runExperiment(config, dataLoader, classifier, aggregator, useDifferentialPrivacy):
+    # TODO:  trainingData, trainingLabels => trainDataset;
+    # TODO:  xTest, yTest => testDataset
     trainingData, trainingLabels, xTest, yTest = dataLoader(config.percUsers, config.labels, config.datasetSize)
+    # TODO: dataset replacing Data and Labels
     clients = __initClients(config, trainingData, trainingLabels, useDifferentialPrivacy)
     model = classifier.to(config.device)
     aggregator = aggregator(clients, model, config.rounds, config.device)
@@ -77,6 +80,7 @@ def __initClients(config, trainingData, trainingLabels, useDifferentialPrivacy):
     clients = []
     for i in range(usersNo):
         clients.append(Client(idx=i + 1,
+                              # TODO: dataset replacing Data and Labels
                               x=trainingData[i],
                               y=trainingLabels[i],
                               p=p0,
@@ -92,13 +96,10 @@ def __initClients(config, trainingData, trainingLabels, useDifferentialPrivacy):
                               needNormalization=config.needNormalization,
                               releaseProportion=config.releaseProportion))
 
-    ntr = 0
-    for client in clients:
-        ntr += client.xTrain.size(0)
-
+    nTrain = sum([client.n for client in clients])
     # Weight the value of the update of each user according to the number of training data points
     for client in clients:
-        client.p = client.xTrain.size(0) / ntr
+        client.p = client.n / nTrain
         # logPrint("Weight for user ", u.id, ": ", round(u.p,3))
 
     # Create malicious (byzantine) users
@@ -113,6 +114,7 @@ def __initClients(config, trainingData, trainingLabels, useDifferentialPrivacy):
             # r = torch.randperm(u.ytr.size(0))
             # u.yTrain = u.yTrain[r]
             client.yTrain = torch.zeros(client.yTrain.size(), dtype=torch.int64)
+            # TODO: client.dataset.yTrain = ...
     return clients
 
 

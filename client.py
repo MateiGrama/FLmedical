@@ -73,10 +73,12 @@ class Client:
         for i in range(self.epochs):
             # logPrint("Epoch user: ",i)
             # Shuffle training data
-            r = torch.randperm(self.xTrain.size()[0])
+            r = torch.randperm(self.n)
             self.xTrain = self.xTrain[r]
             self.yTrain = self.yTrain[r]
+            # TODO: use dataloader(client's dataset); may be initialized in constructor
             for iBatch in range(0, self.xTrain.size(0), self.batchSize):
+                # TODO: print x from fataloader (mor de curiozitate)
                 x = self.xTrain[iBatch:iBatch + self.batchSize, :].to(self.device)
                 y = self.yTrain[iBatch:iBatch + self.batchSize].to(self.device)
                 err, pred = self._trainClassifier(x, y)
