@@ -14,158 +14,121 @@ from torchvision import transforms, datasets
 from logger import logPrint
 
 
-class DataLoader:
+# Used for specifying the desired behaviour of the
+# dataset loaded by DataLoaders.loadData entry points
+class DatasetInterface(Dataset):
+
+    def __init__(self, labels):
+        self.labels = torch.tensor(labels, dtype=torch.long)
+
+    def __len__(self):
+        raise Exception("Method should be implemented in subclass.")
+
+    def __getitem__(self, index):
+        raise Exception("Method should be implemented in subclass.")
+
+    def zeroLabels(self):
+        self.labels = torch.zeros(len(self.labels), dtype=torch.long)
+
+
+class DatasetLoader:
     """Abstract class used for specifying the data loading workflow """
 
-    def loadData(self, percUsers, labels, size=(None, None)):
+    def getDatasets(self, percUsers, labels, size=(None, None)):
         raise Exception("LoadData method should be override by child class, "
                         "specific to the loaded dataset strategy.")
 
     @staticmethod
-    def _filterByLabelAndShuffle(labels, xTrn, yTrn, xTst, yTst):
-        xTrain = torch.tensor([])
-        xTest = torch.tensor([])
-        yTrain = torch.tensor([], dtype=torch.long)
-        yTest = torch.tensor([], dtype=torch.long)
-        # Extract the entries corresponding to the labels passed as param
-        for e in labels:
-            idx = (yTrn == e)
-            xTrain = torch.cat((xTrain, xTrn[idx]), dim=0)
-            yTrain = torch.cat((yTrain, yTrn[idx]), dim=0)
-
-            idx = (yTst == e)
-            xTest = torch.cat((xTest, xTst[idx]), dim=0)
-            yTest = torch.cat((yTest, yTst[idx]), dim=0)
-        # Shuffle
-        r = torch.randperm(xTrain.size(0))
-        xTrain = xTrain[r, :]
-        yTrain = yTrain[r]
-        return xTrain, yTrain, xTest, yTest
+    def _filterDataByLabel(labels, trainDataframe, testDataframe):
+        trainDataframe = trainDataframe[trainDataframe['labels'].isin(labels)]
+        testDataframe = testDataframe[testDataframe['labels'].isin(labels)]
+        return trainDataframe, testDataframe
 
     @staticmethod
-    def _splitTrainData(percUsers, xTrain, yTrain, xTest, yTest):
+    def _splitTrainDataIntoClientDatasets(percUsers, trainDataframe, DatasetType):
         percUsers = percUsers / percUsers.sum()
-        userNo = percUsers.size(0)
 
-        ntr_users = (percUsers * xTrain.size(0)).floor().numpy()
+        dataSplitCount = (percUsers * len(trainDataframe)).floor().numpy()
+        _, *dataSplitIndex = [int(sum(dataSplitCount[range(i)])) for i in range(len(dataSplitCount))]
 
-        training_data = []
-        training_labels = []
-        it = 0
-        for i in range(userNo):
-            x = xTrain[it:it + int(ntr_users[i]), :].clone().detach()
-            y = yTrain[it:it + int(ntr_users[i])].clone().detach()
-            training_data.append(x)
-            training_labels.append(y)
-            it = it + int(ntr_users[i])
+        trainDataframes = np.split(trainDataframe, indices_or_sections=dataSplitIndex)
 
-        return training_data, training_labels, xTest, yTest
-
-    @staticmethod
-    def _splitTrainDataIndex(percUsers, xTrain, yTrain, xTest, yTest):
-        percUsers = percUsers / percUsers.sum()
-        userNo = percUsers.size(0)
-
-        ntr_users = (percUsers * xTrain.size(0)).floor().numpy()
-
-        training_data = []
-        training_labels = []
-        it = 0
-        for i in range(userNo):
-            x = xTrain[it:it + int(ntr_users[i]), :].clone().detach()
-            y = yTrain[it:it + int(ntr_users[i])].clone().detach()
-            training_data.append(x)
-            training_labels.append(y)
-            it = it + int(ntr_users[i])
-
-        return training_data, training_labels, xTest, yTest
+        clientDatasets = [DatasetType(clientDataframe.reset_index(drop=True))
+                          for clientDataframe in trainDataframes]
+        return clientDatasets
 
 
-class DataLoaderMNIST(DataLoader):
+class DatasetLoaderMNIST(DatasetLoader):
 
-    def loadData(self, percUsers, labels, size=None):
+    def getDatasets(self, percUsers, labels, size=None):
         logPrint("Loading MNIST...")
-        data = self.__loadMNISTdata()
-        xTrain, yTrain, xTest, yTest = self._filterByLabelAndShuffle(labels, *data)
-        # Splitting data to users corresponding to user percentage param
-        return self._splitTrainData(percUsers, xTest, yTest, xTrain, yTrain)
+        data = self.__loadMNISTData()
+        trainDataframe, testDataframe = self._filterDataByLabel(labels, *data)
+        clientsDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.MNISTDataset)
+        testDataset = self.MNISTDataset(testDataframe)
+        return clientsDatasets, testDataset
 
     @staticmethod
-    def __loadMNISTdata():
+    def __loadMNISTData():
         trans = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize((0.5,), (1.0,))])
 
         # if not exist, download mnist dataset
-        trainSet = datasets.MNIST('data', train=True, transform=trans, download=True)
+        trainSet = datasets.MNIST('data', train=True, transform=trans, download=True, )
         testSet = datasets.MNIST('data', train=False, transform=trans, download=True)
 
         # Scale pixel intensities to [-1, 1]
-        x = trainSet.train_data
-        x = 2 * (x.float() / 255.0) - 1
+        xTrain = trainSet.train_data
+        xTrain = 2 * (xTrain.float() / 255.0) - 1
         # list of 2D images to 1D pixel intensities
-        x = x.flatten(1, 2)
-        y = trainSet.train_labels
-
-        # Shuffle
-        r = torch.randperm(x.size(0))
-        xTrain = x[r]
-        yTrain = y[r]
+        xTrain = xTrain.flatten(1, 2).numpy()
+        yTrain = trainSet.train_labels.numpy()
 
         # Scale pixel intensities to [-1, 1]
         xTest = testSet.test_data.clone().detach()
         xTest = 2 * (xTest.float() / 255.0) - 1
         # list of 2D images to 1D pixel intensities
-        xTest = xTest.flatten(1, 2)
-        yTest = testSet.test_labels.clone().detach()
+        xTest = xTest.flatten(1, 2).numpy()
+        yTest = testSet.test_labels.numpy()
 
-        return xTrain, yTrain, xTest, yTest
+        trainDataframe = pd.DataFrame(zip(xTrain, yTrain))
+        testDataframe = pd.DataFrame(zip(xTest, yTest))
+        trainDataframe.columns = testDataframe.columns = ['data', 'labels']
 
-        # WIP: postponed until decided to use or not PySyft
+        return trainDataframe, testDataframe
 
-    # WIP: postponed until pysyft integration needed
-    def getSyftMNIST(self, percUsers, labels):
-        percUsers = percUsers / percUsers.sum()
-        userNo = percUsers.size(0)
+    class MNISTDataset(DatasetInterface):
 
-        xTrn, yTrn, xTst, yTst = self.__loadMNISTdata()
+        def __init__(self, dataframe):
+            self.data = torch.stack([torch.from_numpy(data) for data in dataframe['data'].values], dim=0)
+            super().__init__(dataframe['labels'].values)
 
-        xTest, xTrain, yTest, yTrain = self.__filterByLabelAndShuffle(labels, xTrn, xTst, yTrn, yTst)
+        def __len__(self):
+            return len(self.data)
 
-        # Splitting data to users corresponding to user percentage param
-        ntr_users = (percUsers * xTrain.size(0)).floor().numpy()
-
-        training_data = []
-        training_labels = []
-
-        it = 0
-        for i in range(userNo):
-            x = xTrain[it:it + int(ntr_users[i]), :].clone().detach()
-            y = yTrain[it:it + int(ntr_users[i])].clone().detach()
-            it = it + int(ntr_users[i])
-
-            # create syft client sending them x, y
-
-        return training_data, training_labels, xTest, yTest
+        def __getitem__(self, index):
+            return self.data[index], self.labels[index]
 
 
-class DataLoaderCOVIDx(DataLoader):
+class DatasetLoaderCOVIDx(DatasetLoader):
 
     def __init__(self, dim=(224, 224), assembleDatasets=True):
         self.assembleDatasets = assembleDatasets
         self.dim = dim
         self.dataPath = './data/COVIDx'
-        self.testFile = self.dataPath + '/test_split_v2.txt'
-        self.trainFile = self.dataPath + '/train_split_v2.txt'
+        self.testCSV = self.dataPath + '/test_split_v2.txt'
+        self.trainCSV = self.dataPath + '/train_split_v2.txt'
         self.COVIDxLabelsDict = {'pneumonia': 0, 'normal': 1, 'COVID-19': 2}
 
-    def loadData(self, percUsers, labels, size=None):
+    def getDatasets(self, percUsers, labels, size=None):
         logPrint("Loading COVIDx...")
-        data = self.__loadCOVIDxData(*size)
-        xTrain, yTrain, xTest, yTest = self._filterByLabelAndShuffle(labels, *data)
-        # Splitting data to users corresponding to user percentage param
-        return self._splitTrainData(percUsers, xTrain, yTrain, xTest, yTest,)
+        data = self.__loadCOVIDxDataPandas(*size)
+        trainDataframe, testDataframe = self._filterDataByLabel(labels, *data)
+        clientsDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.COVIDxDataset)
+        testDataset = self.COVIDxDataset(testDataframe, isTestDataset=True)
+        return clientsDatasets, testDataset
 
-    def __loadCOVIDxData(self, trainSize, testSize):
+    def __loadCOVIDxDataPandas(self, trainSize, testSize):
         if self.__datasetNotFound():
             logPrint("Can't find train|test split .txt files or "
                      "/train, /test files not populated accordingly.")
@@ -175,34 +138,9 @@ class DataLoaderCOVIDx(DataLoader):
             logPrint("Proceeding to assemble dataset from downloaded resources.")
             self.__joinDatasets()
 
-        trainPaths, trainLabels = self.__readFilePaths(self.trainFile)
-        testPaths, testLabels = self.__readFilePaths(self.testFile)
-
-        if not trainSize:
-            trainSize = len(trainPaths)
-        if not testSize:
-            testSize = len(testPaths)
-
-        xTrain = torch.tensor([])
-        xTest = torch.tensor([])
-        yTrain = torch.tensor([], dtype=torch.long)
-        yTest = torch.tensor([], dtype=torch.long)
-
-        logPrint("Loading train images. ({} images)".format(trainSize))
-        for i in range(trainSize):
-            imageTensor = self.__load_image(self.dataPath + '/train/' + trainPaths[i], self.dim)
-            xTrain = torch.cat((xTrain, torch.unsqueeze(imageTensor, dim=0)), dim=0)
-            labelTensor = torch.tensor(self.COVIDxLabelsDict[trainLabels[i]])
-            yTrain = torch.cat((yTrain, torch.unsqueeze(labelTensor, dim=0)), dim=0)
-
-        logPrint("Loading test images. ({} images)".format(testSize))
-        for i in range(testSize):
-            imageTensor = self.__load_image(self.dataPath + '/test/' + testPaths[i], self.dim)
-            xTest = torch.cat((xTest, torch.unsqueeze(imageTensor, dim=0)), dim=0)
-            labelTensor = torch.tensor(self.COVIDxLabelsDict[testLabels[i]])
-            yTest = torch.cat((yTest, torch.unsqueeze(labelTensor, dim=0)), dim=0)
-
-        return xTrain, yTrain, xTest, yTest
+        trainDataframe = self.__readDataframe(self.trainCSV, trainSize)
+        testDataframe = self.__readDataframe(self.testCSV, testSize)
+        return trainDataframe, testDataframe
 
     def __datasetNotFound(self):
         if not os.path.exists(self.dataPath + "/test_split_v2.txt") or \
@@ -216,30 +154,11 @@ class DataLoaderCOVIDx(DataLoader):
             return True
         return False
 
-    @staticmethod
-    def __readFilePaths(filePath):
-        paths, labels = [], []
-        with open(filePath, 'r') as file:
-            for line in file:
-                _, path, label = line.replace('\n', '').split(' ')
-                paths.append(path)
-                labels.append(label)
-            return paths, labels
-
-    @staticmethod
-    def __load_image(img_path, dim):
-        if not os.path.exists(img_path):
-            print("IMAGE DOES NOT EXIST {}".format(img_path))
-        image = Image.open(img_path).convert('RGB')
-        image = image.resize(dim).convert('RGB')
-
-        transform = transforms.Compose([transforms.ToTensor(),
-                                        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                                             std=[0.229, 0.224, 0.225])])
-        # if(image_tensor.size(0)>1):
-        #     #print(img_path," > 1 channels")
-        #     image_tensor = image_tensor.mean(dim=0,keepdim=True)
-        return transform(image)
+    def __readDataframe(self, file, size):
+        dataFrame = pd.read_csv(file, names=['id', 'fileNames', 'labels'],
+                                sep=' ', header=None, usecols=[1, 2])
+        dataFrame['labels'] = dataFrame['labels'].map(lambda label: self.COVIDxLabelsDict[label])
+        return dataFrame.head(size)
 
     def __joinDatasets(self):
         dataSources = ['/covid-chestxray-dataset',
@@ -431,3 +350,33 @@ class DataLoaderCOVIDx(DataLoader):
             info = str(sample[0]) + ' ' + sample[1] + ' ' + sample[2] + '\n'
             test_file.write(info)
         test_file.close()
+
+    class COVIDxDataset(DatasetInterface):
+
+        def __init__(self, dataframe, isTestDataset=False):
+            self.root = './data/COVIDx/' + ('test/' if isTestDataset else 'train/')
+            self.paths = dataframe['fileNames']
+            super().__init__(dataframe['labels'].values)
+
+        def __len__(self):
+            return len(self.paths)
+
+        def __getitem__(self, index):
+            imageTensor = self.__load_image(self.root + self.paths[index])
+            labelTensor = self.labels[index]
+            return imageTensor, labelTensor
+
+        @staticmethod
+        def __load_image(img_path):
+            if not os.path.exists(img_path):
+                print("IMAGE DOES NOT EXIST {}".format(img_path))
+            image = Image.open(img_path).convert('RGB')
+            image = image.resize((224, 224)).convert('RGB')
+
+            transform = transforms.Compose([transforms.ToTensor(),
+                                            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                                 std=[0.229, 0.224, 0.225])])
+            # if(imageTensor.size(0)>1):
+            #     #print(img_path," > 1 channels")
+            #     imageTensor = imageTensor.mean(dim=0,keepdim=True)
+            return transform(image)

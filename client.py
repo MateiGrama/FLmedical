@@ -4,7 +4,8 @@ import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from itertools import product
+
+from torch.utils.data import DataLoader
 from numpy import clip, percentile, array, concatenate, empty
 
 from scipy.stats import laplace
@@ -15,18 +16,17 @@ from logger import logPrint
 class Client:
     """ An internal representation of a client """
 
-    def __init__(self, epochs, batchSize, learningRate, x, y, p, idx, device, useDifferentialPrivacy,
-                 releaseProportion, epsilon1, epsilon3, needClip, clipValue, needNormalization,
-                 byzantine=None, flipping=None, model=None, alpha=3.0, beta=3.0):
+    def __init__(self, epochs, batchSize, learningRate, trainDataset, p, idx, device,
+                 useDifferentialPrivacy, releaseProportion, epsilon1, epsilon3, needClip, clipValue,
+                 needNormalization, byzantine=None, flipping=None, model=None, alpha=3.0, beta=3.0):
 
         self.name = "client" + str(idx)
         self.device = device
 
         self.model = model
-        self.xTrain = x  # Training data
-        self.yTrain = y  # Labels
+        self.trainDataset = trainDataset
+        self.n = len(trainDataset)  # Number of training points provided
         self.p = p  # Contribution to the overall model
-        self.n = x.size()[0]  # Number of training points provided
         self.id = idx  # ID for the user
         self.byz = byzantine  # Boolean indicating whether the user is faulty or not
         self.flip = flipping  # Boolean indicating whether the user is malicious or not (label flipping attack)
@@ -70,20 +70,15 @@ class Client:
 
     # Function to train the model for a specific user
     def trainModel(self):
+        dataLoader = DataLoader(self.trainDataset, batch_size=self.batchSize, shuffle=True)
         for i in range(self.epochs):
-            # logPrint("Epoch user: ",i)
-            # Shuffle training data
-            r = torch.randperm(self.n)
-            self.xTrain = self.xTrain[r]
-            self.yTrain = self.yTrain[r]
-            # TODO: use dataloader(client's dataset); may be initialized in constructor
-            for iBatch in range(0, self.xTrain.size(0), self.batchSize):
-                # TODO: print x from fataloader (mor de curiozitate)
-                x = self.xTrain[iBatch:iBatch + self.batchSize, :].to(self.device)
-                y = self.yTrain[iBatch:iBatch + self.batchSize].to(self.device)
+            # logPrint("Client:{} Epoch:{}".format(self.id, i))
+            for iBatch, (x, y) in enumerate(dataLoader):
+                x = x.to(self.device)
+                y = y.to(self.device)
                 err, pred = self._trainClassifier(x, y)
                 # logPrint("Client:{}; Epoch{}; Batch:{}; \tError:{}"
-                #          "".format(self.id, i + 1, iBatch / self.batchSize + 1, err))
+                #          "".format(self.id, i + 1, iBatch + 1, err))
         return err, pred
 
     # Function to train the classifier

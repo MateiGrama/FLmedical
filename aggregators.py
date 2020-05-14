@@ -6,6 +6,7 @@ from torch import nn
 from logger import logPrint
 from threading import Thread
 from sklearn.metrics import confusion_matrix
+from torch.utils.data import DataLoader
 
 import torch
 
@@ -19,7 +20,7 @@ class Aggregator:
         self.device = device
         self.useAsyncClients = useAsyncClients
 
-    def trainAndTest(self, xTest, yTest):
+    def trainAndTest(self, testDataset):
         raise Exception("Train method should be override by child class, "
                         "specific to the aggregation strategy.")
 
@@ -51,12 +52,12 @@ class Aggregator:
                 models[client] = client.model
         return models
 
-    def test(self, xTest, yTest):
-        # Compute test accuracy
-        Ypred = self.predict(self.model, xTest)
+    def test(self, testDataset):
+        dataLoader = DataLoader(testDataset, shuffle=False)
+        predLabels, testLabels = zip(*[(self.predict(self.model, x), y) for x, y in dataLoader])
         # Confusion matrix and normalized confusion matrix
-        mconf = confusion_matrix(yTest.to("cpu"), Ypred.to("cpu"))
-        errors = 1 - 1.0 * mconf.diagonal().sum() / xTest.size(0)
+        mconf = confusion_matrix(predLabels, testLabels)
+        errors = 1 - 1.0 * mconf.diagonal().sum() / len(testDataset)
         logPrint("Error Rate: ", round(100.0 * errors, 3), "%")
         sys.stdout.flush()
         return errors
@@ -84,7 +85,7 @@ class Aggregator:
 # FEDERATED AVERAGING AGGREGATOR
 class FAAggregator(Aggregator):
 
-    def trainAndTest(self, xTest, yTest):
+    def trainAndTest(self, testDataset):
 
         roundsError = torch.zeros(self.rounds)
         for r in range(self.rounds):
@@ -97,7 +98,7 @@ class FAAggregator(Aggregator):
                 self._mergeModels(models[client].to(self.device), self.model.to(self.device), client.p, comb)
                 comb = 1.0
 
-            roundsError[r] = self.test(xTest, yTest)
+            roundsError[r] = self.test(testDataset)
 
         return roundsError
 
@@ -106,7 +107,7 @@ class FAAggregator(Aggregator):
 # computes the median of the updates provided by the clients
 class COMEDAggregator(Aggregator):
 
-    def trainAndTest(self, xTest, yTest):
+    def trainAndTest(self, testDataset):
         roundsError = torch.zeros(self.rounds)
 
         for r in range(self.rounds):
@@ -118,7 +119,7 @@ class COMEDAggregator(Aggregator):
             # Merge models
             self.model = self.__medianModels(models)
 
-            roundsError[r] = self.test(xTest, yTest)
+            roundsError[r] = self.test(testDataset)
 
         return roundsError
 
@@ -144,7 +145,7 @@ class COMEDAggregator(Aggregator):
 
 class MKRUMAggregator(Aggregator):
 
-    def trainAndTest(self, xTest, yTest):
+    def trainAndTest(self, testDataset):
 
         userNo = len(self.clients)
         # Number of Byzantine workers to be tolerated
@@ -183,7 +184,7 @@ class MKRUMAggregator(Aggregator):
                     self._mergeModels(models[client].to(self.device), self.model.to(self.device), 1 / mk, comb)
                     comb = 1.0
 
-            roundsError[r] = self.test(xTest, yTest)
+            roundsError[r] = self.test(testDataset)
 
         return roundsError
 
@@ -207,7 +208,7 @@ class MKRUMAggregator(Aggregator):
 
 class AFAAggregator(Aggregator):
 
-    def trainAndTest(self, xTest, yTest):
+    def trainAndTest(self, testDataset):
 
         # List of malicious users blocked
         maliciousBlocked = []
@@ -334,7 +335,7 @@ class AFAAggregator(Aggregator):
                 if not client.blocked:
                     client.badUpdate = False
 
-            roundsError[r] = self.test(xTest, yTest)
+            roundsError[r] = self.test(testDataset)
 
         return roundsError
 

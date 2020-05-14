@@ -1,5 +1,5 @@
 from experiment.DefaultExperimentConfiguration import DefaultExperimentConfiguration
-from dataLoaders.dataUtils import DataLoaderMNIST, DataLoaderCOVIDx
+from dataLoaders.dataUtils import DatasetLoaderMNIST, DatasetLoaderCOVIDx
 from classifiers import MNIST, CovidNet, CNN
 from logger import logPrint
 from client import Client
@@ -14,13 +14,13 @@ import time
 
 
 def __experimentOnMNIST(config):
-    dataLoader = DataLoaderMNIST().loadData
+    dataLoader = DatasetLoaderMNIST().getDatasets
     classifier = MNIST.Classifier()
     __experimentSetup(config, dataLoader, classifier)
 
 
 def __experimentOnCONVIDx(config, model='COVIDNet_small'):
-    dataLoader = DataLoaderCOVIDx().loadData
+    dataLoader = DatasetLoaderCOVIDx().getDatasets
     if model == 'COVIDNet_small':
         classifier = CovidNet.Classifier('small')
     elif model == 'COVIDNet_large':
@@ -62,17 +62,14 @@ def __experimentSetup(config, dataLoader, classifier):
 
 
 def __runExperiment(config, dataLoader, classifier, aggregator, useDifferentialPrivacy):
-    # TODO:  trainingData, trainingLabels => trainDataset;
-    # TODO:  xTest, yTest => testDataset
-    trainingData, trainingLabels, xTest, yTest = dataLoader(config.percUsers, config.labels, config.datasetSize)
-    # TODO: dataset replacing Data and Labels
-    clients = __initClients(config, trainingData, trainingLabels, useDifferentialPrivacy)
+    trainDatasets, testDataset = dataLoader(config.percUsers, config.labels, config.datasetSize)
+    clients = __initClients(config, trainDatasets, useDifferentialPrivacy)
     model = classifier.to(config.device)
     aggregator = aggregator(clients, model, config.rounds, config.device)
-    return aggregator.trainAndTest(xTest, yTest)
+    return aggregator.trainAndTest(testDataset)
 
 
-def __initClients(config, trainingData, trainingLabels, useDifferentialPrivacy):
+def __initClients(config, trainDatasets, useDifferentialPrivacy):
     usersNo = config.percUsers.size(0)
     p0 = 1 / usersNo
     # Seed
@@ -80,9 +77,7 @@ def __initClients(config, trainingData, trainingLabels, useDifferentialPrivacy):
     clients = []
     for i in range(usersNo):
         clients.append(Client(idx=i + 1,
-                              # TODO: dataset replacing Data and Labels
-                              x=trainingData[i],
-                              y=trainingLabels[i],
+                              trainDataset=trainDatasets[i],
                               p=p0,
                               epochs=config.epochs,
                               batchSize=config.batchSize,
@@ -102,19 +97,18 @@ def __initClients(config, trainingData, trainingLabels, useDifferentialPrivacy):
         client.p = client.n / nTrain
         # logPrint("Weight for user ", u.id, ": ", round(u.p,3))
 
-    # Create malicious (byzantine) users
+    # Create malicious (byzantine) and faulty users
     for client in clients:
         if client.id in config.faulty:
             client.byz = True
-            logPrint("User ", client.id, " is faulty.")
-        if client.id in config.flipping:
+            logPrint("User", client.id, "is faulty.")
+        if client.id in config.malicious:
             client.flip = True
-            logPrint("User ", client.id, " is malicious.")
+            logPrint("User", client.id, "is malicious.")
             # Flip labels
             # r = torch.randperm(u.ytr.size(0))
             # u.yTrain = u.yTrain[r]
-            client.yTrain = torch.zeros(client.yTrain.size(), dtype=torch.int64)
-            # TODO: client.dataset.yTrain = ...
+            client.trainDataset.zeroLabels()
     return clients
 
 
@@ -124,12 +118,6 @@ def __setRandomSeeds(seed=0):
     torch.manual_seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-    # cudnn.deterministic = True
-    # warnings.warn('You have chosen to seed training. '
-    #               'This will turn on the CUDNN deterministic setting, '
-    #               'which can slow down your training considerably! '
-    #               'You may see unexpected behavior when restarting '
-    #               'from checkpoints.')
 
 
 # EXPERIMENTS #
@@ -306,9 +294,17 @@ def withMultipleDPconfigsAndWithout_30notByzClients():
 
 
 @experiment
+def noDP_noByzClient_onCOVIDx():
+    configuration = DefaultExperimentConfiguration()
+    configuration.batchSize = 64
+    configuration.learningRate = 0.0002
+    __experimentOnCONVIDx(configuration)
+
+
+@experiment
 def noDP_singleClient_onCOVIDx_100train11test():
     configuration = DefaultExperimentConfiguration()
-    configuration.percUsers = torch.tensor([1.])
+    configuration.percUsers = torch.tensor([1., 2.])
     configuration.datasetSize = (100, 11)
     configuration.batchSize = 20
     configuration.epochs = 3
@@ -316,6 +312,16 @@ def noDP_singleClient_onCOVIDx_100train11test():
     __experimentOnCONVIDx(configuration)
 
 
-# noDP_singleClient_onCOVIDx_100train11test()
+@experiment
+def customExperiment():
+    configuration = DefaultExperimentConfiguration()
 
-withAndWithoutDP_30withByzClients_onMNIST()
+    configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1])
+    configuration.faulty = [2, 6]
+    configuration.malicious = [1]
+    configuration.aggregators = [agg.AFAAggregator]
+
+    __experimentOnMNIST(configuration)
+
+
+customExperiment()

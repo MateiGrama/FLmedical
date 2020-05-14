@@ -17,7 +17,7 @@ class DefaultExperimentConfiguration:
         self.datasetSize = (None, None)
 
         # Clients setup
-        self.percUsers = torch.tensor([0.2, 0.10, 0.15, 0.15, 0.15, 0.15, 0.1])  # Client data partition
+        self.percUsers = torch.tensor([0.2, 0.1, 0.15, 0.15, 0.15, 0.15, 0.1])  # Client data partition
         self.labels = torch.tensor(range(10))  # Considered dataset labels
         self.faulty = []  # List of noisy clients
         self.flipping = []  # List of (malicious) clients with flipped labels
