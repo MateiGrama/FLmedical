@@ -22,7 +22,7 @@ class DatasetInterface(Dataset):
         self.labels = torch.tensor(labels, dtype=torch.long)
 
     def __len__(self):
-        raise Exception("Method should be implemented in subclass.")
+        return len(self.labels)
 
     def __getitem__(self, index):
         raise Exception("Method should be implemented in subclass.")
@@ -357,9 +357,6 @@ class DatasetLoaderCOVIDx(DatasetLoader):
             self.root = './data/COVIDx/' + ('test/' if isTestDataset else 'train/')
             self.paths = dataframe['fileNames']
             super().__init__(dataframe['labels'].values)
-
-        def __len__(self):
-            return len(self.paths)
 
         def __getitem__(self, index):
             imageTensor = self.__load_image(self.root + self.paths[index])
