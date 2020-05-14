@@ -20,6 +20,8 @@ class ExpResult(object):
 
 
 default = DefaultExperimentConfiguration()
+if default.rounds < 10:
+    print("WARNING: small value of default rounds might have been used for testing.")
 
 # OUTPUT LOG PARSING
 fileName = "test"
@@ -164,6 +166,7 @@ if differentAttacksOnMNISTwithAndWithoutDPExperiment:
 
     # Add traces, one for each slider step
     for exp in results:
+        print(exp)
         configName = exp.name
         transparent = 'rgba(0, 0, 0, 0)'
         markerColors = np.full(default.rounds, transparent, dtype=object)
