@@ -14,8 +14,6 @@ from torchvision import transforms, datasets
 from logger import logPrint
 
 
-# Used for specifying the desired behaviour of the
-# dataset loaded by DataLoaders.loadData entry points
 class DatasetInterface(Dataset):
 
     def __init__(self, labels):

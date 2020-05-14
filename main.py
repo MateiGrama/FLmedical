@@ -1,5 +1,5 @@
 from experiment.DefaultExperimentConfiguration import DefaultExperimentConfiguration
-from dataLoaders.dataUtils import DatasetLoaderMNIST, DatasetLoaderCOVIDx
+from datasetLoaders.loaders import DatasetLoaderMNIST, DatasetLoaderCOVIDx
 from classifiers import MNIST, CovidNet, CNN
 from logger import logPrint
 from client import Client
