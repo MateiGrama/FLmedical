@@ -370,16 +370,24 @@ def withAndWithoutDP_withAndWithoutByz_30ByzClients_onCOVIDx():
     epsilon3 = 0.0001
     releaseProportion = 0.1
 
+    learningRate = 0.00002
+    batchSize = 2
+
     # Without DP without attacks
     noDPconfig = DefaultExperimentConfiguration()
     noDPconfig.aggregators = agg.allAggregators()
     noDPconfig.percUsers = percUsers
+    noDPconfig.learningRate = learningRate
+    noDPconfig.batchSize = batchSize
+
     __experimentOnCONVIDx(noDPconfig)
 
     # With DP without attacks
     DPconfig = DefaultExperimentConfiguration()
     DPconfig.aggregators = agg.allAggregators()
     DPconfig.percUsers = percUsers
+    DPconfig.learningRate = learningRate
+    DPconfig.batchSize = batchSize
 
     DPconfig.privacyPreserve = True
     DPconfig.releaseProportion = releaseProportion
@@ -393,6 +401,8 @@ def withAndWithoutDP_withAndWithoutByz_30ByzClients_onCOVIDx():
     DPbyzConfig = DefaultExperimentConfiguration()
     DPbyzConfig.percUsers = percUsers
     DPbyzConfig.aggregators = agg.allAggregators()
+    DPbyzConfig.learningRate = learningRate
+    DPbyzConfig.batchSize = batchSize
 
     DPbyzConfig.privacyPreserve = True
     DPbyzConfig.releaseProportion = releaseProportion
@@ -439,5 +449,6 @@ def customExperiment():
     __experimentOnMNIST(configuration)
 
 
-withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST()
-# withAndWithoutDP_withAndWithoutByz_30ByzClients_onCOVIDx()
+# withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST()
+
+withAndWithoutDP_withAndWithoutByz_30ByzClients_onCOVIDx()

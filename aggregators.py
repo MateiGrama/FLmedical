@@ -103,8 +103,7 @@ class FAAggregator(Aggregator):
         return roundsError
 
 
-# ROBUST AGGREGATION ALGORITHM
-# computes the median of the updates provided by the clients
+# ROBUST AGGREGATION ALGORITHM - computes the median of the clients updates
 class COMEDAggregator(Aggregator):
 
     def trainAndTest(self, testDataset):
@@ -143,6 +142,7 @@ class COMEDAggregator(Aggregator):
         return modelCopy.to(self.device)
 
 
+# ROBUST AGGREGATION ALGORITHM - computes the median of the clients updates
 class MKRUMAggregator(Aggregator):
 
     def trainAndTest(self, testDataset):
@@ -205,6 +205,7 @@ class MKRUMAggregator(Aggregator):
         return sim
 
 
+# ADAPTIVE FEDERATED AVERAGING
 class AFAAggregator(Aggregator):
 
     def trainAndTest(self, testDataset):
