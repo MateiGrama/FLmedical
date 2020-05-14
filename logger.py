@@ -1,3 +1,4 @@
+import sys
 from datetime import datetime
 
 
@@ -6,3 +7,5 @@ def logPrint(*msg):
     time = str(now.strftime("%d/%m/%Y,%H:%M:%S"))
     print(time + ":", end=" ")
     print(*msg)
+    sys.stdout.flush()
+

@@ -59,7 +59,6 @@ class Aggregator:
         mconf = confusion_matrix(predLabels, testLabels)
         errors = 1 - 1.0 * mconf.diagonal().sum() / len(testDataset)
         logPrint("Error Rate: ", round(100.0 * errors, 3), "%")
-        sys.stdout.flush()
         return errors
 
     # Function for computing predictions
