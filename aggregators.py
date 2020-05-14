@@ -55,8 +55,10 @@ class Aggregator:
     def test(self, testDataset):
         dataLoader = DataLoader(testDataset, shuffle=False)
         predLabels, testLabels = zip(*[(self.predict(self.model, x), y) for x, y in dataLoader])
+        predLabels = torch.tensor(predLabels, dtype=torch.long)
+        testLabels = torch.tensor(testLabels, dtype=torch.long)
         # Confusion matrix and normalized confusion matrix
-        mconf = confusion_matrix(list(testLabels), list(predLabels))
+        mconf = confusion_matrix(testLabels, predLabels)
         errors = 1 - 1.0 * mconf.diagonal().sum() / len(testDataset)
         logPrint("Error Rate: ", round(100.0 * errors, 3), "%")
         return errors
