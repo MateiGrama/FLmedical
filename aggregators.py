@@ -56,7 +56,7 @@ class Aggregator:
         dataLoader = DataLoader(testDataset, shuffle=False)
         predLabels, testLabels = zip(*[(self.predict(self.model, x), y) for x, y in dataLoader])
         # Confusion matrix and normalized confusion matrix
-        mconf = confusion_matrix(predLabels, testLabels)
+        mconf = confusion_matrix(list(predLabels), list(testLabels))
         errors = 1 - 1.0 * mconf.diagonal().sum() / len(testDataset)
         logPrint("Error Rate: ", round(100.0 * errors, 3), "%")
         return errors
