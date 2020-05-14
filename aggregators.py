@@ -87,7 +87,6 @@ class Aggregator:
 class FAAggregator(Aggregator):
 
     def trainAndTest(self, testDataset):
-
         roundsError = torch.zeros(self.rounds)
         for r in range(self.rounds):
             logPrint("Round... ", r)
@@ -147,7 +146,6 @@ class COMEDAggregator(Aggregator):
 class MKRUMAggregator(Aggregator):
 
     def trainAndTest(self, testDataset):
-
         userNo = len(self.clients)
         # Number of Byzantine workers to be tolerated
         f = int((userNo - 3) / 2)
@@ -210,7 +208,6 @@ class MKRUMAggregator(Aggregator):
 class AFAAggregator(Aggregator):
 
     def trainAndTest(self, testDataset):
-
         # List of malicious users blocked
         maliciousBlocked = []
         # List with the iteration where a malicious user was blocked

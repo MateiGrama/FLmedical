@@ -3,7 +3,7 @@ from torchvision import models
 
 
 class Classifier(nn.Module):
-    def __init__(self, classes, model='resnet18'):
+    def __init__(self, classes=3, model='resnet18'):
         super(Classifier, self).__init__()
         if model == 'resnet18':
             self.cnn = models.resnet18(pretrained=True)

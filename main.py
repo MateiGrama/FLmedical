@@ -15,18 +15,16 @@ import time
 
 def __experimentOnMNIST(config):
     dataLoader = DatasetLoaderMNIST().getDatasets
-    classifier = MNIST.Classifier()
+    classifier = MNIST.Classifier
     __experimentSetup(config, dataLoader, classifier)
 
 
-def __experimentOnCONVIDx(config, model='COVIDNet_small'):
+def __experimentOnCONVIDx(config, model='COVIDNet'):
     dataLoader = DatasetLoaderCOVIDx().getDatasets
-    if model == 'COVIDNet_small':
-        classifier = CovidNet.Classifier('small')
-    elif model == 'COVIDNet_large':
-        classifier = CovidNet.Classifier('large')
+    if model == 'COVIDNet':
+        classifier = CovidNet.Classifier
     elif model == 'resnet18':
-        classifier = CNN.Classifier(classes=3, model='resnet18')
+        classifier = CNN.Classifier
     else:
         raise Exception("Invalid Covid model name.")
     __experimentSetup(config, dataLoader, classifier)
@@ -66,7 +64,7 @@ def __experimentSetup(config, dataLoader, classifier):
 def __runExperiment(config, dataLoader, classifier, aggregator, useDifferentialPrivacy):
     trainDatasets, testDataset = dataLoader(config.percUsers, config.labels, config.datasetSize)
     clients = __initClients(config, trainDatasets, useDifferentialPrivacy)
-    model = classifier.to(config.device)
+    model = classifier().to(config.device)
     aggregator = aggregator(clients, model, config.rounds, config.device)
     return aggregator.trainAndTest(testDataset)
 
@@ -358,6 +356,59 @@ def withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST():
 
 
 @experiment
+def withAndWithoutDP_withAndWithoutByz_30ByzClients_onCOVIDx():
+    # Privacy budget = (releaseProportion, epsilon1, epsilon3)
+
+    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+
+    faulty = [5, 10]
+    malicious = [3, 13, 23]
+
+    epsilon1 = 0.0001
+    epsilon3 = 0.0001
+    releaseProportion = 0.1
+
+    # Without DP without attacks
+    noDPconfig = DefaultExperimentConfiguration()
+    noDPconfig.aggregators = agg.allAggregators()
+    noDPconfig.percUsers = percUsers
+    __experimentOnCONVIDx(noDPconfig)
+
+    # With DP without attacks
+    DPconfig = DefaultExperimentConfiguration()
+    DPconfig.aggregators = agg.allAggregators()
+    DPconfig.percUsers = percUsers
+
+    DPconfig.privacyPreserve = True
+    DPconfig.releaseProportion = releaseProportion
+    DPconfig.epsilon1 = epsilon1
+    DPconfig.epsilon3 = epsilon3
+    DPconfig.needClip = True
+
+    __experimentOnCONVIDx(DPconfig)
+
+    # With DP with attacks
+    DPbyzConfig = DefaultExperimentConfiguration()
+    DPbyzConfig.percUsers = percUsers
+    DPbyzConfig.aggregators = agg.allAggregators()
+
+    DPbyzConfig.privacyPreserve = True
+    DPbyzConfig.releaseProportion = releaseProportion
+    DPbyzConfig.epsilon1 = epsilon1
+    DPbyzConfig.epsilon3 = epsilon3
+    DPbyzConfig.needClip = True
+
+    DPbyzConfig.faulty = faulty
+    DPbyzConfig.malicious = malicious
+
+    DPbyzConfig.name = "altered:2_faulty,3_malicious"
+
+    __experimentOnCONVIDx(DPbyzConfig)
+
+
+@experiment
 def noDP_noByzClient_onCOVIDx():
     configuration = DefaultExperimentConfiguration()
     configuration.batchSize = 64
@@ -389,3 +440,4 @@ def customExperiment():
 
 
 withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST()
+# withAndWithoutDP_withAndWithoutByz_30ByzClients_onCOVIDx()

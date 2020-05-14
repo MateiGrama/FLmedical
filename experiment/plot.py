@@ -22,7 +22,7 @@ class ExpResult(object):
 default = DefaultExperimentConfiguration()
 
 # OUTPUT LOG PARSING
-fileName = "experiment"
+fileName = "test"
 file = open("experiment/{}.log".format(fileName), "r")
 results = []
 currentName = None
@@ -57,8 +57,8 @@ for line in file:
 
 # EXPERIMENT-SPECIFIC: set booleans corresponding to experiment to plot
 
-manyDPconfigsOnEMNISTEwithNoAttackExperiment = True
-differentAttacksOnMNISTwithAndWithoutDPExperiment = False
+manyDPconfigsOnEMNISTEwithNoAttackExperiment = False
+differentAttacksOnMNISTwithAndWithoutDPExperiment = True
 
 if manyDPconfigsOnEMNISTEwithNoAttackExperiment:
     # Recreating tested configurations for labeling
@@ -169,7 +169,7 @@ if differentAttacksOnMNISTwithAndWithoutDPExperiment:
         markerColors = np.full(default.rounds, transparent, dtype=object)
         hoverText = np.full(default.rounds, None, dtype=object)
         if exp.blocked:
-            exp.name += "blocked:"
+            configName += "blocked:"
             for blockRound, client in exp.blocked:
                 configName += "{};".format(client)
                 hoverText[blockRound] = "{} blocked {} at round {}".format(exp.name, blockRound, client)
@@ -189,7 +189,7 @@ if differentAttacksOnMNISTwithAndWithoutDPExperiment:
 
     annotations = [dict(xref='paper', yref='paper', x=0.0, y=1.05,
                         xanchor='left', yanchor='bottom',
-                        text='{} DP configurations; no Byzantine clients'.format(len(experiments)),
+                        text='{} DP configurations; no Byzantine clients'.format(len(results)),
                         font=dict(family='Arial',
                                   size=30,
                                   color='rgba(20,20,20,0.5)'),

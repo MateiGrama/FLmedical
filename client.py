@@ -10,8 +10,6 @@ from numpy import clip, percentile, array, concatenate, empty
 
 from scipy.stats import laplace
 
-from logger import logPrint
-
 
 class Client:
     """ An internal representation of a client """
