@@ -13,6 +13,6 @@ TERM=vt100
 
 uptime
 
-nohup python3.6 -u main.py > out/experiment.log 2>&1
+nohup python -u main.py > out/experiment.log 2>&1
 #echo $! > out/lastExperimentPID.txt
 
