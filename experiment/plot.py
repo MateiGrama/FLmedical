@@ -199,7 +199,8 @@ if differentAttacksOnMNISTwithAndWithoutDPExperiment:
 
     annotations = [dict(xref='paper', yref='paper', x=0.0, y=1.05,
                         xanchor='left', yanchor='bottom',
-                        text='{} DP configurations; no Byzantine clients'.format(len(results)),
+                        text='{} configurations: with and without DP (low and high budgets) /'
+                             ' Byzantine clients'.format(len(results)),
                         font=dict(family='Arial',
                                   size=30,
                                   color='rgba(20,20,20,0.5)'),
