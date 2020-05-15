@@ -361,7 +361,7 @@ def withLowAndHighAndWithoutDP_30ByzClients_onMNIST():
     privacyBudget = [(0.1, 0.0001, 0.0001, 'low'), (0.4, 1, 1, 'high')]
 
     # Attacks: Malicious/Flipping - flips labels to 0; Faulty/Byzantine - noisy
-    attacks = [([1, 3, 5, 7, 9, 11, 13, 15], [2, 4, 6, 8, 10, 12, 14], '8_faulty,7_malicious')]
+    attacks = [([1, 3, 5, 7, 9, 11, 13], [2, 4, 6, 8, 10, 12, 14], '7_faulty,7_malicious')]
 
     percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
@@ -500,4 +500,4 @@ def customExperiment():
 
 # withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST()
 
-customExperiment()
+withLowAndHighAndWithoutDP_30ByzClients_onMNIST()
