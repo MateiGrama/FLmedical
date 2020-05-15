@@ -164,6 +164,13 @@ if differentAttacksOnMNISTwithAndWithoutDPExperiment:
     # Create figure
     fig = go.Figure()
 
+
+    def filtering(experiment):
+        return 'AFA' in experiment.name
+        # return '10' in experiment.name
+
+
+    results = list(filter(filtering, results))
     # Add traces, one for each slider step
     for exp in results:
         print(exp)
@@ -201,4 +208,3 @@ if differentAttacksOnMNISTwithAndWithoutDPExperiment:
 
     fig.update_layout(annotations=annotations)
     fig.show()
-

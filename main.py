@@ -356,6 +356,55 @@ def withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST():
 
 
 @experiment
+def withLowAndHighAndWithoutDP_30ByzClients_onMNIST():
+    # Privacy budget = (releaseProportion, epsilon1, epsilon3)
+    privacyBudget = [(0.1, 0.0001, 0.0001, 'low'), (0.4, 1, 1, 'high')]
+
+    # Attacks: Malicious/Flipping - flips labels to 0; Faulty/Byzantine - noisy
+    attacks = [([1, 3, 5, 7, 9], [2, 4, 6, 8, 10], '8_faulty,7_malicious')]
+
+    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+
+    # Without DP
+    for scenario in attacks:
+        faulty, malicious, attackName = scenario
+        noDPconfig = DefaultExperimentConfiguration()
+        noDPconfig.aggregators = agg.allAggregators()
+        noDPconfig.percUsers = percUsers
+
+        noDPconfig.faulty = faulty
+        noDPconfig.malicious = malicious
+        noDPconfig.name = "altered:{}".format(attackName)
+
+        __experimentOnMNIST(noDPconfig)
+
+    # With DP
+    for budget, attack in product(privacyBudget, attacks):
+        releaseProportion, epsilon1, epsilon3, budgetName = budget
+        faulty, malicious, attackName = attack
+
+        expConfig = DefaultExperimentConfiguration()
+        expConfig.percUsers = percUsers
+        expConfig.aggregators = agg.allAggregators()
+
+        expConfig.privacyPreserve = True
+        expConfig.releaseProportion = releaseProportion
+        expConfig.epsilon1 = epsilon1
+        expConfig.epsilon3 = epsilon3
+        expConfig.needClip = True
+
+        expConfig.faulty = faulty
+        expConfig.malicious = malicious
+
+        expConfig.name = "altered:{};".format(attackName)
+        expConfig.name += "privacyBudget:{};".format(budgetName)
+
+        __experimentOnMNIST(expConfig)
+
+
+@experiment
 def withAndWithoutDP_withAndWithoutByz_30ByzClients_onCOVIDx():
     # Privacy budget = (releaseProportion, epsilon1, epsilon3)
 
@@ -451,4 +500,4 @@ def customExperiment():
 
 # withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST()
 
-withAndWithoutDP_withAndWithoutByz_30ByzClients_onCOVIDx()
+withLowAndHighAndWithoutDP_30ByzClients_onMNIST()
