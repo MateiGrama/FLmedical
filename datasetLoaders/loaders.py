@@ -375,3 +375,70 @@ class DatasetLoaderCOVIDx(DatasetLoader):
             #     #print(img_path," > 1 channels")
             #     imageTensor = imageTensor.mean(dim=0,keepdim=True)
             return transform(image)
+
+
+class DatasetLoaderDiabetes(DatasetLoader):
+
+    def getDatasets(self, percUsers, labels, size=None):
+        logPrint("Loading Diabetes data...")
+        data = self.__loadDiabetesData()
+        trainDataframe, testDataframe = self._filterDataByLabel(labels, *data)
+        clientsDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.DiabetesDataset)
+        testDataset = self.DiabetesDataset(testDataframe)
+        return clientsDatasets, testDataset
+
+    @staticmethod
+    def __loadDiabetesData(dataBinning=False, kAnonimity=None):
+
+        data = pd.read_csv('data/Diabetes/diabetes.csv')
+
+        # Handling Missing Data¶
+        data['BMI'] = data.BMI.mask(data.BMI == 0, (data['BMI'].mean(skipna=True)))
+        data['SkinThickness'] = data.SkinThickness.mask(data.SkinThickness == 0,
+                                                        (data['SkinThickness'].mean(skipna=True)))
+        data['BloodPressure'] = data.BloodPressure.mask(data.BloodPressure == 0,
+                                                        (data['BloodPressure'].mean(skipna=True)))
+        data['Glucose'] = data.Glucose.mask(data.Glucose == 0, (data['Glucose'].mean(skipna=True)))
+        data.drop(['Insulin'], axis=1)
+
+        if dataBinning:
+            data['Age'] = data['Age'].astype(int)
+            data.loc[data['Age'] <= 16, 'Age'] = 0
+            data.loc[(data['Age'] > 16) & (data['Age'] <= 32), 'Age'] = 1
+            data.loc[(data['Age'] > 32) & (data['Age'] <= 48), 'Age'] = 2
+            data.loc[(data['Age'] > 48) & (data['Age'] <= 64), 'Age'] = 3
+            data.loc[data['Age'] > 64, 'Age'] = 4
+
+            data['Glucose'] = data['Glucose'].astype(int)
+            data.loc[data['Glucose'] <= 80, 'Glucose'] = 0
+            data.loc[(data['Glucose'] > 80) & (data['Glucose'] <= 100), 'Glucose'] = 1
+            data.loc[(data['Glucose'] > 100) & (data['Glucose'] <= 125), 'Glucose'] = 2
+            data.loc[(data['Glucose'] > 125) & (data['Glucose'] <= 150), 'Glucose'] = 3
+            data.loc[data['Glucose'] > 150, 'Glucose'] = 4
+
+            data['BloodPressure'] = data['BloodPressure'].astype(int)
+            data.loc[data['BloodPressure'] <= 50, 'BloodPressure'] = 0
+            data.loc[(data['BloodPressure'] > 50) & (data['BloodPressure'] <= 65), 'BloodPressure'] = 1
+            data.loc[(data['BloodPressure'] > 65) & (data['BloodPressure'] <= 80), 'BloodPressure'] = 2
+            data.loc[(data['BloodPressure'] > 80) & (data['BloodPressure'] <= 100), 'BloodPressure'] = 3
+            data.loc[data['BloodPressure'] > 100, 'BloodPressure'] = 4
+
+        return 0
+
+        # trainDataframe = pd.DataFrame(zip(xTrain, yTrain))
+        # testDataframe = pd.DataFrame(zip(xTest, yTest))
+        # trainDataframe.columns = testDataframe.columns = ['data', 'labels']
+        #
+        # return trainDataframe, testDataframe
+
+    class DiabetesDataset(DatasetInterface):
+
+        def __init__(self, dataframe):
+            self.data = torch.stack([torch.from_numpy(data) for data in dataframe['data'].values], dim=0)
+            super().__init__(dataframe['labels'].values)
+
+        def __len__(self):
+            return len(self.data)
+
+        def __getitem__(self, index):
+            return self.data[index], self.labels[index]
