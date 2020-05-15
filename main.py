@@ -500,4 +500,4 @@ def customExperiment():
 
 # withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST()
 
-withLowAndHighAndWithoutDP_30ByzClients_onMNIST()
+customExperiment()
