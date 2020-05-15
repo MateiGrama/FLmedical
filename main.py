@@ -1,6 +1,6 @@
 from experiment.DefaultExperimentConfiguration import DefaultExperimentConfiguration
-from datasetLoaders.loaders import DatasetLoaderMNIST, DatasetLoaderCOVIDx
-from classifiers import MNIST, CovidNet, CNN
+from datasetLoaders.loaders import DatasetLoaderMNIST, DatasetLoaderCOVIDx, DatasetLoaderDiabetes
+from classifiers import MNIST, CovidNet, CNN, Diabetes
 from logger import logPrint
 from client import Client
 import aggregators as agg
@@ -27,6 +27,12 @@ def __experimentOnCONVIDx(config, model='COVIDNet'):
         classifier = CNN.Classifier
     else:
         raise Exception("Invalid Covid model name.")
+    __experimentSetup(config, dataLoader, classifier)
+
+
+def __experimentOnDiabetes(config):
+    dataLoader = DatasetLoaderDiabetes().getDatasets
+    classifier = Diabetes.Classifier
     __experimentSetup(config, dataLoader, classifier)
 
 
@@ -487,6 +493,11 @@ def noDP_singleClient_onCOVIDx_100train11test():
 
 
 @experiment
+def noDP_noByz_onDiabetes():
+    configuration = DefaultExperimentConfiguration()
+    __experimentOnDiabetes(configuration)
+
+@experiment
 def customExperiment():
     configuration = DefaultExperimentConfiguration()
 
@@ -498,6 +509,4 @@ def customExperiment():
     __experimentOnMNIST(configuration)
 
 
-# withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST()
-
-customExperiment()
+noDP_noByz_onDiabetes()
