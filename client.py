@@ -165,13 +165,15 @@ class Client:
         queryNoise = torch.tensor(queryNoise).to(self.device)
         # queryNoise = [0 for _ in range(paramNo)]  # )
 
-        if needClip:
-            noisyQuery = abs(clip(paramChanges, -gamma, gamma)) + queryNoise
-        else:
-            noisyQuery = abs(paramChanges) + queryNoise
-        noisyQuery = noisyQuery.to(self.device)
+        releaseIndex = torch.empty(0).to(self.device)
+        while torch.sum(releaseIndex) < shareParamsNo:
+            if needClip:
+                noisyQuery = abs(clip(paramChanges, -gamma, gamma)) + queryNoise
+            else:
+                noisyQuery = abs(paramChanges) + queryNoise
+            noisyQuery = noisyQuery.to(self.device)
+            releaseIndex = (noisyQuery >= noisyThreshold).to(self.device)
 
-        releaseIndex = (noisyQuery >= noisyThreshold).to(self.device)
         filteredChanges = paramChanges[releaseIndex]
 
         answerNoise = laplace.rvs(scale=(shareParamsNo * s / e3), size=torch.sum(releaseIndex).cpu())
