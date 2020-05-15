@@ -490,9 +490,12 @@ def noDP_singleClient_onCOVIDx_100train11test():
 def customExperiment():
     configuration = DefaultExperimentConfiguration()
 
-    configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1])
-    configuration.faulty = [2, 6]
-    configuration.malicious = [1]
+    configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+
+    configuration.malicious = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19]
+
     configuration.aggregators = [agg.AFAAggregator]
 
     __experimentOnMNIST(configuration)
@@ -500,4 +503,4 @@ def customExperiment():
 
 # withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST()
 
-withLowAndHighAndWithoutDP_30ByzClients_onMNIST()
+withAndWithoutDP_withAndWithoutByz_30ByzClients_onCOVIDx()
