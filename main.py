@@ -356,6 +356,146 @@ def withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST():
 
 
 @experiment
+def withAndWithoutDP_AFA_30ByzAndNotClients_onMNIST():
+    # Privacy budget = (releaseProportion, epsilon1, epsilon3)
+    privacyBudget = [(0.1, 0.0001, 0.0001, 'low')],# (0.4, 1, 1, 'high')]
+
+    # Attacks: Malicious/Flipping - flips labels to 0; Faulty/Byzantine - noisy
+    attacks = [([2 * i + 1 for i in range(2)], [], '2_faulty'),
+               ([2 * i + 1 for i in range(4)], [], '4_faulty'),
+               ([2 * i + 1 for i in range(6)], [], '6_faulty'),
+               ([2 * i + 1 for i in range(8)], [], '8_faulty'),
+               ([2 * i + 1 for i in range(10)], [], '10_faulty'),
+               ([2 * i + 1 for i in range(12)], [], '12_faulty'),
+               ([2 * i + 1 for i in range(14)], [], '14_faulty'),
+               ([2 * i + 1 for i in range(16)], [], '16_faulty'),
+               ([], [2 * i for i in range(2)], '2_malicious'),
+               ([], [2 * i for i in range(4)], '4_malicious'),
+               ([], [2 * i for i in range(6)], '6_malicious'),
+               ([], [2 * i for i in range(8)], '8_malicious'),
+               ([], [2 * i for i in range(10)], '10_malicious'),
+               ([], [2 * i for i in range(12)], '12_malicious'),
+               ([], [2 * i for i in range(14)], '14_malicious'),
+               ([], [2 * i for i in range(16)], '16_malicious'),
+               ([2 * i + 1 for i in range(1)], [2 * i for i in range(1)], '1_faulty,1_malicious'),
+               ([2 * i + 1 for i in range(2)], [2 * i for i in range(2)], '2_faulty,2_malicious'),
+               ([2 * i + 1 for i in range(3)], [2 * i for i in range(3)], '3_faulty,3_malicious'),
+               ([2 * i + 1 for i in range(4)], [2 * i for i in range(4)], '4_faulty,4_malicious'),
+               ([2 * i + 1 for i in range(5)], [2 * i for i in range(5)], '5_faulty,5_malicious'),
+               ([2 * i + 1 for i in range(6)], [2 * i for i in range(6)], '6_faulty,6_malicious'),
+               ([2 * i + 1 for i in range(7)], [2 * i for i in range(7)], '7_faulty,7_malicious'),
+               ([2 * i + 1 for i in range(8)], [2 * i for i in range(8)], '8_faulty,8_malicious')]
+
+    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+
+    # Without DP without attacks
+    noDPconfig = DefaultExperimentConfiguration()
+    noDPconfig.aggregators = [agg.AFAAggregator]
+    noDPconfig.percUsers = percUsers
+    __experimentOnMNIST(noDPconfig)
+
+    # Without DP
+    for scenario in attacks:
+        faulty, malicious, attackName = scenario
+        noDPconfig = DefaultExperimentConfiguration()
+        noDPconfig.aggregators = [agg.AFAAggregator]
+        noDPconfig.percUsers = percUsers
+
+        noDPconfig.faulty = faulty
+        noDPconfig.malicious = malicious
+        noDPconfig.name = "altered:{}".format(attackName)
+
+        __experimentOnMNIST(noDPconfig)
+
+    # With DP
+    for budget, attack in product(privacyBudget, attacks):
+        releaseProportion, epsilon1, epsilon3, budgetName = budget
+        faulty, malicious, attackName = attack
+
+        expConfig = DefaultExperimentConfiguration()
+        expConfig.percUsers = percUsers
+        expConfig.aggregators = [agg.AFAAggregator]
+
+        expConfig.privacyPreserve = True
+        expConfig.releaseProportion = releaseProportion
+        expConfig.epsilon1 = epsilon1
+        expConfig.epsilon3 = epsilon3
+        expConfig.needClip = True
+
+        expConfig.faulty = faulty
+        expConfig.malicious = malicious
+
+        expConfig.name = "altered:{};".format(attackName)
+        expConfig.name += "privacyBudget:{};".format(budgetName)
+
+        __experimentOnMNIST(expConfig)
+
+
+@experiment
+def withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST():
+    # Privacy budget = (releaseProportion, epsilon1, epsilon3)
+    privacyBudget = [(0.1, 0.0001, 0.0001, 'low'), (0.4, 1, 1, 'high')]
+
+    # Attacks: Malicious/Flipping - flips labels to 0; Faulty/Byzantine - noisy
+    attacks = [([1], [], '1_faulty'),
+               ([], [2], '1_malicious'),
+               ([1], [2], '1_faulty,1_malicious'),
+               ([1, 3, 5, 7, 9], [2, 4, 6, 8, 10], '5_faulty,5_malicious'),
+               ([1, 3, 5, 7, 9, 11, 13, 15, 17, 19], [], '10_faulty'),
+               ([], [2, 4, 6, 8, 10, 12, 14, 16, 18, 20], '10_malicious'),
+               ([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29],
+                [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28], '15_faulty,14_malicious')]
+
+    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+
+    # Without DP without attacks
+    noDPconfig = DefaultExperimentConfiguration()
+    noDPconfig.aggregators = agg.allAggregators()
+    noDPconfig.percUsers = percUsers
+    __experimentOnMNIST(noDPconfig)
+
+    # Without DP
+    for scenario in attacks:
+        faulty, malicious, attackName = scenario
+        noDPconfig = DefaultExperimentConfiguration()
+        noDPconfig.aggregators = agg.allAggregators()
+        noDPconfig.percUsers = percUsers
+
+        noDPconfig.faulty = faulty
+        noDPconfig.malicious = malicious
+        noDPconfig.name = "altered:{}".format(attackName)
+
+        __experimentOnMNIST(noDPconfig)
+
+    # With DP
+    for budget, attack in product(privacyBudget, attacks):
+        releaseProportion, epsilon1, epsilon3, budgetName = budget
+        faulty, malicious, attackName = attack
+
+        expConfig = DefaultExperimentConfiguration()
+        expConfig.percUsers = percUsers
+        expConfig.aggregators = agg.allAggregators()
+
+        expConfig.privacyPreserve = True
+        expConfig.releaseProportion = releaseProportion
+        expConfig.epsilon1 = epsilon1
+        expConfig.epsilon3 = epsilon3
+        expConfig.needClip = True
+
+        expConfig.faulty = faulty
+        expConfig.malicious = malicious
+
+        expConfig.name = "altered:{};".format(attackName)
+        expConfig.name += "privacyBudget:{};".format(budgetName)
+
+        __experimentOnMNIST(expConfig)
+
+
+@experiment
 def withLowAndHighAndWithoutDP_30ByzClients_onMNIST():
     # Privacy budget = (releaseProportion, epsilon1, epsilon3)
     privacyBudget = [(0.1, 0.0001, 0.0001, 'low'), (0.4, 1, 1, 'high')]
@@ -503,4 +643,4 @@ def customExperiment():
 
 # withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST()
 
-withAndWithoutDP_withAndWithoutByz_30ByzClients_onCOVIDx()
+withAndWithoutDP_AFA_30ByzAndNotClients_onMNIST()

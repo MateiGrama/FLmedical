@@ -72,7 +72,7 @@ class Client:
     def trainModel(self):
         dataLoader = DataLoader(self.trainDataset, batch_size=self.batchSize, shuffle=True)
         for i in range(self.epochs):
-            logPrint("Client:{} Epoch:{}".format(self.id, i))
+            # logPrint("Client:{} Epoch:{}".format(self.id, i))
             for iBatch, (x, y) in enumerate(dataLoader):
                 x = x.to(self.device)
                 y = y.to(self.device)
