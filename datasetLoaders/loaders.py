@@ -405,6 +405,8 @@ class DatasetLoaderDiabetes(DatasetLoader):
                                                         (data['BloodPressure'].mean(skipna=True)))
         data['Glucose'] = data.Glucose.mask(data.Glucose == 0, (data['Glucose'].mean(skipna=True)))
         data = data.drop(['Insulin'], axis=1)
+        labels = data['Outcome']
+        data = data.drop(['Outcome'], axis=1)
 
         if dataBinning:
             data['Age'] = data['Age'].astype(int)
@@ -428,22 +430,21 @@ class DatasetLoaderDiabetes(DatasetLoader):
             data.loc[(data['BloodPressure'] > 80) & (data['BloodPressure'] <= 100), 'BloodPressure'] = 3
             data.loc[data['BloodPressure'] > 100, 'BloodPressure'] = 4
 
-        print(data.head(5))
+        print(data.head(2).values)
 
-        protected = Protect(data, KAnonymity(4))
+        protected = Protect(data, KAnonymity(2))
 
         protected.quality_model = Loss()
 
         for col in data:
             protected.itypes[col] = 'quasi'
 
-        protected.hierarchies.Pregnancies = OrderHierarchy('interval', 2, 2, 2)
-        protected.hierarchies.Glucose = OrderHierarchy('interval', 5, 2, 2)
-        protected.hierarchies.BloodPressure = OrderHierarchy('interval', 3, 2, 2)
-        protected.hierarchies.SkinThickness = OrderHierarchy('interval', 4, 2, 2)
-        # protected.hierarchies.Insulin = OrderHierarchy('interval', 5, 2, 2)
-        protected.hierarchies.BMI = OrderHierarchy('interval', 3, 2, 2)
-        protected.hierarchies.DiabetesPedigreeFunction = OrderHierarchy('interval', 0.05, 2, 2)
+        # protected.hierarchies.Pregnancies = OrderHierarchy('interval', 2, 2, 2)
+        # protected.hierarchies.Glucose = OrderHierarchy('interval', 5, 2, 2)
+        # protected.hierarchies.BloodPressure = OrderHierarchy('interval', 3, 2, 2)
+        # protected.hierarchies.SkinThickness = OrderHierarchy('interval', 4, 2, 2)
+        # protected.hierarchies.BMI = OrderHierarchy('interval', 3, 2, 2)
+        protected.hierarchies.DiabetesPedigreeFunction = OrderHierarchy('interval', 3, 2, 2)
         protected.hierarchies.Age = OrderHierarchy('interval', 5, 2, 2)
 
         protected = protected.protect()
