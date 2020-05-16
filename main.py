@@ -358,8 +358,7 @@ def withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST():
 @experiment
 def withAndWithoutDP_AFA_30ByzAndNotClients_onMNIST():
     # Privacy budget = (releaseProportion, epsilon1, epsilon3)
-    privacyBudget = [(0.1, 0.0001, 0.0001, 'low')],# (0.4, 1, 1, 'high')]
-
+    privacyBudget = [(0.1, 0.0001, 0.0001, 'low')]
     # Attacks: Malicious/Flipping - flips labels to 0; Faulty/Byzantine - noisy
     attacks = [([2 * i + 1 for i in range(2)], [], '2_faulty'),
                ([2 * i + 1 for i in range(4)], [], '4_faulty'),
