@@ -54,7 +54,8 @@ class Aggregator:
 
     def test(self, testDataset):
         dataLoader = DataLoader(testDataset, shuffle=False)
-        predLabels, testLabels = zip(*[(self.predict(self.model, x), y) for x, y in dataLoader])
+        with torch.no_grad():
+            predLabels, testLabels = zip(*[(self.predict(self.model, x), y) for x, y in dataLoader])
         predLabels = torch.tensor(predLabels, dtype=torch.long)
         testLabels = torch.tensor(testLabels, dtype=torch.long)
         # Confusion matrix and normalized confusion matrix
