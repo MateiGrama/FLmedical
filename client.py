@@ -79,6 +79,8 @@ class Client:
                 err, pred = self._trainClassifier(x, y)
                 # logPrint("Client:{}; Epoch{}; Batch:{}; \tError:{}"
                 #          "".format(self.id, i + 1, iBatch + 1, err))
+        del x
+        del dataLoader
         return err, pred
 
     # Function to train the classifier
