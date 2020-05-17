@@ -385,8 +385,8 @@ def withAndWithoutDP_AFA_30ByzAndNotClients_onMNIST():
                ([2 * i + 1 for i in range(7)], [2 * i for i in range(7)], '7_faulty,7_malicious'),
                ([2 * i + 1 for i in range(8)], [2 * i for i in range(8)], '8_faulty,8_malicious')]
 
-    attacks = [([2 * i + 1 for i in range(10)], [], '9_faulty'),
-               ([], [2 * i for i in range(10)], '9_malicious')]
+    attacks = [([2 * i + 1 for i in range(9)], [], '9_faulty'),
+               ([], [2 * i for i in range(9)], '9_malicious')]
 
     percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
