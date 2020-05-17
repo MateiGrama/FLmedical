@@ -323,7 +323,7 @@ class AFAAggregator(Aggregator):
             for client in self.clients:
                 if self.notBlockedNorBadUpdate(client):
                     client.pEpoch = client.pEpoch / pT_epoch
-
+            # logPrint("Updated scores:{}".format([client.pEpoch for client in self.clients]))
             comb = 0.0
             for client in self.clients:
                 if self.notBlockedNorBadUpdate(client):
