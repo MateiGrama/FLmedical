@@ -374,4 +374,5 @@ class DatasetLoaderCOVIDx(DatasetLoader):
             # if(imageTensor.size(0)>1):
             #     #print(img_path," > 1 channels")
             #     imageTensor = imageTensor.mean(dim=0,keepdim=True)
-            return transform(image)
+            imageTensor = transform(image)
+            return imageTensor

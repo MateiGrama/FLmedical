@@ -25,6 +25,7 @@ class Client:
 
         self.model = model
         self.trainDataset = trainDataset
+        self.dataLoader = DataLoader(self.trainDataset, batch_size=batchSize, shuffle=True)
         self.n = len(trainDataset)  # Number of training points provided
         self.p = p  # Contribution to the overall model
         self.id = idx  # ID for the user
@@ -70,17 +71,14 @@ class Client:
 
     # Function to train the model for a specific user
     def trainModel(self):
-        dataLoader = DataLoader(self.trainDataset, batch_size=self.batchSize, shuffle=True)
         for i in range(self.epochs):
             # logPrint("Client:{} Epoch:{}".format(self.id, i))
-            for iBatch, (x, y) in enumerate(dataLoader):
+            for iBatch, (x, y) in enumerate(self.dataLoader):
                 x = x.to(self.device)
                 y = y.to(self.device)
                 err, pred = self._trainClassifier(x, y)
                 # logPrint("Client:{}; Epoch{}; Batch:{}; \tError:{}"
                 #          "".format(self.id, i + 1, iBatch + 1, err))
-        del x
-        del dataLoader
         return err, pred
 
     # Function to train the classifier
