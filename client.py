@@ -72,7 +72,7 @@ class Client:
     # Function to train the model for a specific user
     def trainModel(self):
         for i in range(self.epochs):
-            # logPrint("Client:{} Epoch:{}".format(self.id, i))
+            logPrint("Client:{} Epoch:{}".format(self.id, i))
             for iBatch, (x, y) in enumerate(self.dataLoader):
                 x = x.to(self.device)
                 y = y.to(self.device)

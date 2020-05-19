@@ -562,7 +562,7 @@ def withAndWithoutDP_withAndWithoutByz_10ByzClients_onCOVIDx():
     releaseProportion = 0.1
 
     learningRate = 0.00002
-    batchSize = 1
+    batchSize = 2
 
     # Without DP without attacks
     noDPconfig = DefaultExperimentConfiguration()
