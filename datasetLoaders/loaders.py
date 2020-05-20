@@ -457,21 +457,16 @@ class DatasetLoaderDiabetes(DatasetLoader):
             protect.quality_model = Loss()
             protect.suppression = 0
 
-            print(protect.itypes)
-
-            protect.itypes['Age'] = 'quasi'
             protect.itypes['Pregnancies'] = 'quasi'
+            protect.itypes['Age'] = 'quasi'
 
-            protect.itypes['Glucose'] = 'quasi'
-
-            protect.hierarchies.Age = OrderHierarchy('interval', 5, 2, 2)
-            protect.hierarchies.Pregnancies = OrderHierarchy('interval', 2, 2, 2)
-
-            protect.hierarchies.Pregnancies = OrderHierarchy('interval', 30, 2, 2)
+            protect.hierarchies.Pregnancies = OrderHierarchy('interval', 3, 2, 2)
+            protect.hierarchies.Age = OrderHierarchy('interval', 5, 2, 2, 2)
 
         protectedDataframes = [protect.protect() for protect in protects]
-        print(dataframes[0])
-        print(protectedDataframes[0])
+        for i in range(len(dataframes)):
+            print(dataframes[i])
+            print(protectedDataframes[i])
         exit(0)
         return 0, 0
 
