@@ -30,17 +30,13 @@ def __experimentOnCONVIDx(config, model='COVIDNet'):
     __experimentSetup(config, datasetLoader, classifier)
 
 
-<<<<<<< HEAD
 def __experimentOnDiabetes(config):
     dataLoader = DatasetLoaderDiabetes().getDatasets
     classifier = Diabetes.Classifier
     __experimentSetup(config, dataLoader, classifier)
 
 
-def __experimentSetup(config, dataLoader, classifier):
-=======
 def __experimentSetup(config, datasetLoader, classifier):
->>>>>>> vmExperiment
     errorsDict = dict()
     for aggregator in config.aggregators:
         if config.privacyPreserve is not None:

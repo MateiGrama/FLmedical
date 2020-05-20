@@ -15,7 +15,6 @@ from cn.protect import Protect
 from cn.protect.quality import Loss
 from cn.protect.privacy import KAnonymity
 
-
 from logger import logPrint
 
 
@@ -67,9 +66,9 @@ class DatasetLoaderMNIST(DatasetLoader):
         logPrint("Loading MNIST...")
         data = self.__loadMNISTData()
         trainDataframe, testDataframe = self._filterDataByLabel(labels, *data)
-        clientsDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.MNISTDataset)
+        clientDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.MNISTDataset)
         testDataset = self.MNISTDataset(testDataframe)
-        return clientsDatasets, testDataset
+        return clientDatasets, testDataset
 
     @staticmethod
     def __loadMNISTData():
@@ -127,9 +126,9 @@ class DatasetLoaderCOVIDx(DatasetLoader):
         logPrint("Loading COVIDx...")
         data = self.__loadCOVIDxDataPandas(*size)
         trainDataframe, testDataframe = self._filterDataByLabel(labels, *data)
-        clientsDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.COVIDxDataset)
+        clientDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.COVIDxDataset)
         testDataset = self.COVIDxDataset(testDataframe, isTestDataset=True)
-        return clientsDatasets, testDataset
+        return clientDatasets, testDataset
 
     def __loadCOVIDxDataPandas(self, trainSize, testSize):
         if self.__datasetNotFound():
@@ -387,16 +386,22 @@ class DatasetLoaderDiabetes(DatasetLoader):
 
     def getDatasets(self, percUsers, labels, size=None):
         logPrint("Loading Diabetes data...")
-        data = self.__loadDiabetesData()
-        trainDataframe, testDataframe = self._filterDataByLabel(labels, *data)
-        clientsDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.DiabetesDataset)
+        trainDataframe, testDataframe, columnNames = self.__loadDiabetesData()
+        trainDataframe, testDataframe = self._filterDataByLabel(labels, trainDataframe, testDataframe)
+
+        clientDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.DiabetesDataset)
         testDataset = self.DiabetesDataset(testDataframe)
-        return clientsDatasets, testDataset
+
+        anonClientDatasets, clientSyntacticMappings = self.__anonymizeClientDatasets(clientDatasets, columnNames, k=4)
+        anonTestDataset = self.__anonymizeTestDataset(testDataset, clientSyntacticMappings)
+
+        return anonClientDatasets, anonTestDataset
 
     @staticmethod
-    def __loadDiabetesData(dataBinning=False, kAnonimity=None):
-
+    def __loadDiabetesData(dataBinning=False):
         data = pd.read_csv('data/Diabetes/diabetes.csv')
+        # Shuffle
+        data = data.sample(frac=1).reset_index(drop=True)
 
         # Handling Missing Data¶
         data['BMI'] = data.BMI.mask(data.BMI == 0, (data['BMI'].mean(skipna=True)))
@@ -431,39 +436,52 @@ class DatasetLoaderDiabetes(DatasetLoader):
             data.loc[(data['BloodPressure'] > 80) & (data['BloodPressure'] <= 100), 'BloodPressure'] = 3
             data.loc[data['BloodPressure'] > 100, 'BloodPressure'] = 4
 
-        print(data.head(2).values)
+        xTrain = data.head(int(len(data) * .8)).values
+        xTest = data.tail(int(len(data) * .2)).values
+        yTrain = labels.head(int(len(data) * .8)).values
+        yTest = labels.tail(int(len(data) * .2)).values
 
-        protected = Protect(data, KAnonymity(2))
+        trainDataframe = pd.DataFrame(zip(xTrain, yTrain))
+        testDataframe = pd.DataFrame(zip(xTest, yTest))
+        trainDataframe.columns = testDataframe.columns = ['data', 'labels']
 
-        protected.quality_model = Loss()
+        return trainDataframe, testDataframe, data.columns
 
-        for col in data:
-            protected.itypes[col] = 'quasi'
+    @staticmethod
+    def __anonymizeClientDatasets(clientDatasets, columnNames, k):
 
-        # protected.hierarchies.Pregnancies = OrderHierarchy('interval', 2, 2, 2)
-        # protected.hierarchies.Glucose = OrderHierarchy('interval', 5, 2, 2)
-        # protected.hierarchies.BloodPressure = OrderHierarchy('interval', 3, 2, 2)
-        # protected.hierarchies.SkinThickness = OrderHierarchy('interval', 4, 2, 2)
-        # protected.hierarchies.BMI = OrderHierarchy('interval', 3, 2, 2)
-        protected.hierarchies.DiabetesPedigreeFunction = OrderHierarchy('interval', 3, 2, 2)
-        protected.hierarchies.Age = OrderHierarchy('interval', 5, 2, 2)
+        dataframes = [pd.DataFrame(list(ds.dataframe['data']), columns=columnNames) for ds in clientDatasets]
+        protects = [Protect(dataframe, KAnonymity(3)) for dataframe in dataframes]
 
-        protected = protected.protect()
+        for protect in protects:
+            protect.quality_model = Loss()
+            protect.suppression = 0
 
-        print(protected)
+            print(protect.itypes)
+
+            protect.itypes['Age'] = 'quasi'
+            protect.itypes['Pregnancies'] = 'quasi'
+
+            protect.itypes['Glucose'] = 'quasi'
+
+            protect.hierarchies.Age = OrderHierarchy('interval', 5, 2, 2)
+            protect.hierarchies.Pregnancies = OrderHierarchy('interval', 2, 2, 2)
+
+            protect.hierarchies.Pregnancies = OrderHierarchy('interval', 30, 2, 2)
+
+        protectedDataframes = [protect.protect() for protect in protects]
+        print(dataframes[0])
+        print(protectedDataframes[0])
         exit(0)
+        return 0, 0
 
-        return 0
-
-        # trainDataframe = pd.DataFrame(zip(xTrain, yTrain))
-        # testDataframe = pd.DataFrame(zip(xTest, yTest))
-        # trainDataframe.columns = testDataframe.columns = ['data', 'labels']
-        #
-        # return trainDataframe, testDataframe
+    def __anonymizeTestDataset(self, testDataset, clientSyntacticMappings):
+        pass
 
     class DiabetesDataset(DatasetInterface):
 
         def __init__(self, dataframe):
+            self.dataframe = dataframe
             self.data = torch.stack([torch.from_numpy(data) for data in dataframe['data'].values], dim=0)
             super().__init__(dataframe['labels'].values)
 
@@ -472,3 +490,4 @@ class DatasetLoaderDiabetes(DatasetLoader):
 
         def __getitem__(self, index):
             return self.data[index], self.labels[index]
+
