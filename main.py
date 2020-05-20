@@ -20,16 +20,17 @@ def __experimentOnMNIST(config):
 
 
 def __experimentOnCONVIDx(config, model='COVIDNet'):
-    dataLoader = DatasetLoaderCOVIDx().getDatasets
+    datasetLoader = DatasetLoaderCOVIDx().getDatasets
     if model == 'COVIDNet':
         classifier = CovidNet.Classifier
     elif model == 'resnet18':
         classifier = CNN.Classifier
     else:
         raise Exception("Invalid Covid model name.")
-    __experimentSetup(config, dataLoader, classifier)
+    __experimentSetup(config, datasetLoader, classifier)
 
 
+<<<<<<< HEAD
 def __experimentOnDiabetes(config):
     dataLoader = DatasetLoaderDiabetes().getDatasets
     classifier = Diabetes.Classifier
@@ -37,22 +38,25 @@ def __experimentOnDiabetes(config):
 
 
 def __experimentSetup(config, dataLoader, classifier):
+=======
+def __experimentSetup(config, datasetLoader, classifier):
+>>>>>>> vmExperiment
     errorsDict = dict()
     for aggregator in config.aggregators:
         if config.privacyPreserve is not None:
             name = aggregator.__name__.replace("Aggregator", (" with DP" if config.privacyPreserve else ""))
             name += ":" + config.name if config.name else ""
             logPrint("TRAINING {}".format(name))
-            errorsDict[name] = __runExperiment(config, dataLoader, classifier,
+            errorsDict[name] = __runExperiment(config, datasetLoader, classifier,
                                                aggregator, config.privacyPreserve)
         else:
             name = aggregator.__name__.replace("Aggregator", "")
             name += ":" + config.name if config.name else ""
             logPrint("TRAINING {}".format(name))
-            errorsDict[name] = __runExperiment(config, dataLoader, classifier, aggregator,
+            errorsDict[name] = __runExperiment(config, datasetLoader, classifier, aggregator,
                                                useDifferentialPrivacy=False)
             logPrint("TRAINING {} with DP".format(name))
-            errorsDict[name] = __runExperiment(config, dataLoader, classifier, aggregator,
+            errorsDict[name] = __runExperiment(config, datasetLoader, classifier, aggregator,
                                                useDifferentialPrivacy=True)
 
     if config.plotResults:
@@ -67,8 +71,8 @@ def __experimentSetup(config, dataLoader, classifier):
         plt.show()
 
 
-def __runExperiment(config, dataLoader, classifier, aggregator, useDifferentialPrivacy):
-    trainDatasets, testDataset = dataLoader(config.percUsers, config.labels, config.datasetSize)
+def __runExperiment(config, datasetLoader, classifier, aggregator, useDifferentialPrivacy):
+    trainDatasets, testDataset = datasetLoader(config.percUsers, config.labels, config.datasetSize)
     clients = __initClients(config, trainDatasets, useDifferentialPrivacy)
     model = classifier().to(config.device)
     aggregator = aggregator(clients, model, config.rounds, config.device)
@@ -362,12 +366,156 @@ def withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST():
 
 
 @experiment
+def withAndWithoutDP_AFA_30ByzAndNotClients_onMNIST():
+    # Privacy budget = (releaseProportion, epsilon1, epsilon3)
+    privacyBudget = [(0.1, 0.0001, 0.0001, 'low')]
+    # Attacks: Malicious/Flipping - flips labels to 0; Faulty/Byzantine - noisy
+    attacks = [([2 * i + 1 for i in range(2)], [], '2_faulty'),
+               ([2 * i + 1 for i in range(4)], [], '4_faulty'),
+               ([2 * i + 1 for i in range(6)], [], '6_faulty'),
+               ([2 * i + 1 for i in range(8)], [], '8_faulty'),
+               ([2 * i + 1 for i in range(9)], [], '9_faulty'),
+               ([2 * i + 1 for i in range(10)], [], '10_faulty'),
+               ([2 * i + 1 for i in range(12)], [], '12_faulty'),
+               ([2 * i + 1 for i in range(14)], [], '14_faulty'),
+               ([2 * i + 1 for i in range(15)], [], '15_faulty'),
+               ([], [2 * i + 2 for i in range(2)], '2_malicious'),
+               ([], [2 * i + 2 for i in range(4)], '4_malicious'),
+               ([], [2 * i + 2 for i in range(6)], '6_malicious'),
+               ([], [2 * i + 2 for i in range(8)], '8_malicious'),
+               ([], [2 * i + 2 for i in range(9)], '9_malicious'),
+               ([], [2 * i + 2 for i in range(10)], '10_malicious'),
+               ([], [2 * i + 2 for i in range(12)], '12_malicious'),
+               ([], [2 * i + 2 for i in range(14)], '14_malicious'),
+               ([], [2 * i + 2 for i in range(15)], '15_malicious'),
+               ([2 * i + 1 for i in range(1)], [2 * i + 2 for i in range(1)], '1_faulty,1_malicious'),
+               ([2 * i + 1 for i in range(2)], [2 * i + 2 for i in range(2)], '2_faulty,2_malicious'),
+               ([2 * i + 1 for i in range(3)], [2 * i + 2 for i in range(3)], '3_faulty,3_malicious'),
+               ([2 * i + 1 for i in range(4)], [2 * i + 2 for i in range(4)], '4_faulty,4_malicious'),
+               ([2 * i + 1 for i in range(5)], [2 * i + 2 for i in range(5)], '5_faulty,5_malicious'),
+               ([2 * i + 1 for i in range(6)], [2 * i + 2 for i in range(6)], '6_faulty,6_malicious'),
+               ([2 * i + 1 for i in range(7)], [2 * i + 2 for i in range(7)], '7_faulty,7_malicious'),
+               ([2 * i + 1 for i in range(8)], [2 * i + 2 for i in range(8)], '8_faulty,8_malicious')]
+
+    attacks = [([2 * i + 1 for i in range(7)], [], '7_faulty'),
+               ([], [2 * i + 2 for i in range(7)], '7_malicious')]
+
+    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+
+    # Without DP without attacks
+    noDPconfig = DefaultExperimentConfiguration()
+    noDPconfig.aggregators = [agg.AFAAggregator]
+    noDPconfig.percUsers = percUsers
+    __experimentOnMNIST(noDPconfig)
+
+    # Without DP
+    for scenario in attacks:
+        faulty, malicious, attackName = scenario
+        noDPconfig = DefaultExperimentConfiguration()
+        noDPconfig.aggregators = [agg.AFAAggregator]
+        noDPconfig.percUsers = percUsers
+
+        noDPconfig.faulty = faulty
+        noDPconfig.malicious = malicious
+        noDPconfig.name = "altered:{}".format(attackName)
+
+        __experimentOnMNIST(noDPconfig)
+
+    # With DP
+    for budget, attack in product(privacyBudget, attacks):
+        releaseProportion, epsilon1, epsilon3, budgetName = budget
+        faulty, malicious, attackName = attack
+
+        expConfig = DefaultExperimentConfiguration()
+        expConfig.percUsers = percUsers
+        expConfig.aggregators = [agg.AFAAggregator]
+
+        expConfig.privacyPreserve = True
+        expConfig.releaseProportion = releaseProportion
+        expConfig.epsilon1 = epsilon1
+        expConfig.epsilon3 = epsilon3
+        expConfig.needClip = True
+
+        expConfig.faulty = faulty
+        expConfig.malicious = malicious
+
+        expConfig.name = "altered:{};".format(attackName)
+        expConfig.name += "privacyBudget:{};".format(budgetName)
+
+        __experimentOnMNIST(expConfig)
+
+
+@experiment
+def withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST():
+    # Privacy budget = (releaseProportion, epsilon1, epsilon3)
+    privacyBudget = [(0.1, 0.0001, 0.0001, 'low'), (0.4, 1, 1, 'high')]
+
+    # Attacks: Malicious/Flipping - flips labels to 0; Faulty/Byzantine - noisy
+    attacks = [([1], [], '1_faulty'),
+               ([], [2], '1_malicious'),
+               ([1], [2], '1_faulty,1_malicious'),
+               ([1, 3, 5, 7, 9], [2, 4, 6, 8, 10], '5_faulty,5_malicious'),
+               ([1, 3, 5, 7, 9, 11, 13, 15, 17, 19], [], '10_faulty'),
+               ([], [2, 4, 6, 8, 10, 12, 14, 16, 18, 20], '10_malicious'),
+               ([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29],
+                [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28], '15_faulty,14_malicious')]
+
+    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+
+    # Without DP without attacks
+    noDPconfig = DefaultExperimentConfiguration()
+    noDPconfig.aggregators = agg.allAggregators()
+    noDPconfig.percUsers = percUsers
+    __experimentOnMNIST(noDPconfig)
+
+    # Without DP
+    for scenario in attacks:
+        faulty, malicious, attackName = scenario
+        noDPconfig = DefaultExperimentConfiguration()
+        noDPconfig.aggregators = agg.allAggregators()
+        noDPconfig.percUsers = percUsers
+
+        noDPconfig.faulty = faulty
+        noDPconfig.malicious = malicious
+        noDPconfig.name = "altered:{}".format(attackName)
+
+        __experimentOnMNIST(noDPconfig)
+
+    # With DP
+    for budget, attack in product(privacyBudget, attacks):
+        releaseProportion, epsilon1, epsilon3, budgetName = budget
+        faulty, malicious, attackName = attack
+
+        expConfig = DefaultExperimentConfiguration()
+        expConfig.percUsers = percUsers
+        expConfig.aggregators = agg.allAggregators()
+
+        expConfig.privacyPreserve = True
+        expConfig.releaseProportion = releaseProportion
+        expConfig.epsilon1 = epsilon1
+        expConfig.epsilon3 = epsilon3
+        expConfig.needClip = True
+
+        expConfig.faulty = faulty
+        expConfig.malicious = malicious
+
+        expConfig.name = "altered:{};".format(attackName)
+        expConfig.name += "privacyBudget:{};".format(budgetName)
+
+        __experimentOnMNIST(expConfig)
+
+
+@experiment
 def withLowAndHighAndWithoutDP_30ByzClients_onMNIST():
     # Privacy budget = (releaseProportion, epsilon1, epsilon3)
     privacyBudget = [(0.1, 0.0001, 0.0001, 'low'), (0.4, 1, 1, 'high')]
 
     # Attacks: Malicious/Flipping - flips labels to 0; Faulty/Byzantine - noisy
-    attacks = [([1, 3, 5, 7, 9, 11, 13, 15], [2, 4, 6, 8, 10, 12, 14], '8_faulty,7_malicious')]
+    attacks = [([1, 3, 5, 7, 9, 11, 13], [2, 4, 6, 8, 10, 12, 14], '7_faulty,7_malicious')]
 
     percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
@@ -411,15 +559,13 @@ def withLowAndHighAndWithoutDP_30ByzClients_onMNIST():
 
 
 @experiment
-def withAndWithoutDP_withAndWithoutByz_30ByzClients_onCOVIDx():
+def withAndWithoutDP_withAndWithoutByz_10ByzClients_onCOVIDx():
     # Privacy budget = (releaseProportion, epsilon1, epsilon3)
 
-    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15])
 
-    faulty = [5, 10]
-    malicious = [3, 13, 23]
+    faulty = [5]
+    malicious = [3, 6]
 
     epsilon1 = 0.0001
     epsilon3 = 0.0001
@@ -452,7 +598,25 @@ def withAndWithoutDP_withAndWithoutByz_30ByzClients_onCOVIDx():
 
     __experimentOnCONVIDx(DPconfig)
 
-    # With DP with attacks
+    # With DP with one attacker
+    DPconfig = DefaultExperimentConfiguration()
+    DPconfig.aggregators = agg.allAggregators()
+    DPconfig.percUsers = percUsers
+    DPconfig.learningRate = learningRate
+    DPconfig.batchSize = batchSize
+
+    DPconfig.privacyPreserve = True
+    DPconfig.releaseProportion = releaseProportion
+    DPconfig.epsilon1 = epsilon1
+    DPconfig.epsilon3 = epsilon3
+    DPconfig.needClip = True
+
+    DPconfig.malicious = [3]
+    DPconfig.name = "altered:1_malicious"
+
+    __experimentOnCONVIDx(DPconfig)
+
+    # With DP with more attackers
     DPbyzConfig = DefaultExperimentConfiguration()
     DPbyzConfig.percUsers = percUsers
     DPbyzConfig.aggregators = agg.allAggregators()
@@ -468,7 +632,7 @@ def withAndWithoutDP_withAndWithoutByz_30ByzClients_onCOVIDx():
     DPbyzConfig.faulty = faulty
     DPbyzConfig.malicious = malicious
 
-    DPbyzConfig.name = "altered:2_faulty,3_malicious"
+    DPbyzConfig.name = "altered:1_faulty,2_malicious"
 
     __experimentOnCONVIDx(DPbyzConfig)
 
@@ -501,12 +665,15 @@ def noDP_noByz_onDiabetes():
 def customExperiment():
     configuration = DefaultExperimentConfiguration()
 
-    configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1])
-    configuration.faulty = [2, 6]
-    configuration.malicious = [1]
+    configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+
+    configuration.malicious = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19]
+
     configuration.aggregators = [agg.AFAAggregator]
 
     __experimentOnMNIST(configuration)
 
-
 noDP_noByz_onDiabetes()
+

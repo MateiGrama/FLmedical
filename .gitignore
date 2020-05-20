@@ -1,5 +1,6 @@
 FedLrn
 out/
+protect_demo/
 test.py
 .DS_Store
 .idea/*

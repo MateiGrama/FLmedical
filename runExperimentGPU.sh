@@ -13,6 +13,10 @@ TERM=vt100
 
 uptime
 
+<<<<<<< HEAD
 nohup python -u main.py > out/experiment.log 2>&1
+=======
+nohup python -u main.py > out/experimentCOVIDx_batchsize2.log 2>&1
+>>>>>>> vmExperiment
 #echo $! > out/lastExperimentPID.txt
 
