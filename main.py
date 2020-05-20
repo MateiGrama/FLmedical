@@ -550,35 +550,29 @@ def withLowAndHighAndWithoutDP_30ByzClients_onMNIST():
 
 @experiment
 def withAndWithoutDP_withAndWithoutByz_10ByzClients_onCOVIDx():
-    # Privacy budget = (releaseProportion, epsilon1, epsilon3)
-
-    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15])
-
-    faulty = [5]
-    malicious = [3, 6]
-
     epsilon1 = 0.0001
     epsilon3 = 0.0001
     releaseProportion = 0.1
 
     learningRate = 0.00002
-    batchSize = 2
+    batchSize = 1
+    rounds = 25
 
     # Without DP without attacks
     noDPconfig = DefaultExperimentConfiguration()
     noDPconfig.aggregators = agg.allAggregators()
-    noDPconfig.percUsers = percUsers
     noDPconfig.learningRate = learningRate
     noDPconfig.batchSize = batchSize
+    noDPconfig.rounds = rounds
 
     __experimentOnCONVIDx(noDPconfig)
 
     # With DP without attacks
     DPconfig = DefaultExperimentConfiguration()
     DPconfig.aggregators = agg.allAggregators()
-    DPconfig.percUsers = percUsers
     DPconfig.learningRate = learningRate
     DPconfig.batchSize = batchSize
+    DPconfig.rounds = rounds
 
     DPconfig.privacyPreserve = True
     DPconfig.releaseProportion = releaseProportion
@@ -591,9 +585,9 @@ def withAndWithoutDP_withAndWithoutByz_10ByzClients_onCOVIDx():
     # With DP with one attacker
     DPconfig = DefaultExperimentConfiguration()
     DPconfig.aggregators = agg.allAggregators()
-    DPconfig.percUsers = percUsers
     DPconfig.learningRate = learningRate
     DPconfig.batchSize = batchSize
+    DPconfig.rounds = rounds
 
     DPconfig.privacyPreserve = True
     DPconfig.releaseProportion = releaseProportion
@@ -608,10 +602,10 @@ def withAndWithoutDP_withAndWithoutByz_10ByzClients_onCOVIDx():
 
     # With DP with more attackers
     DPbyzConfig = DefaultExperimentConfiguration()
-    DPbyzConfig.percUsers = percUsers
     DPbyzConfig.aggregators = agg.allAggregators()
     DPbyzConfig.learningRate = learningRate
     DPbyzConfig.batchSize = batchSize
+    DPbyzConfig.rounds = rounds
 
     DPbyzConfig.privacyPreserve = True
     DPbyzConfig.releaseProportion = releaseProportion
@@ -619,8 +613,8 @@ def withAndWithoutDP_withAndWithoutByz_10ByzClients_onCOVIDx():
     DPbyzConfig.epsilon3 = epsilon3
     DPbyzConfig.needClip = True
 
-    DPbyzConfig.faulty = faulty
-    DPbyzConfig.malicious = malicious
+    DPbyzConfig.faulty = [5]
+    DPbyzConfig.malicious = [3, 6]
 
     DPbyzConfig.name = "altered:1_faulty,2_malicious"
 
