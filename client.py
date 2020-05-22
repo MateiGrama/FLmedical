@@ -16,8 +16,8 @@ from logger import logPrint
 class Client:
     """ An internal representation of a client """
 
-    def __init__(self, epochs, batchSize, learningRate, trainDataset, p, idx, device,
-                 useDifferentialPrivacy, releaseProportion, epsilon1, epsilon3, needClip, clipValue,
+    def __init__(self, epochs, batchSize, learningRate, trainDataset, p, idx, useDifferentialPrivacy,
+                 releaseProportion, epsilon1, epsilon3, needClip, clipValue, device, Optimizer, Loss,
                  needNormalization, byzantine=None, flipping=None, model=None, alpha=3.0, beta=3.0):
 
         self.name = "client" + str(idx)
@@ -39,6 +39,8 @@ class Client:
         self.opt = None
         self.sim = None
         self.loss = None
+        self.Loss = Loss
+        self.Optimizer = Optimizer
         self.pEpoch = None
         self.badUpdate = False
         self.epochs = epochs
@@ -64,21 +66,22 @@ class Client:
 
     def updateModel(self, model):
         self.model = model
-        self.opt = optim.SGD(self.model.parameters(), lr=self.learningRate, momentum=self.momentum)
-        # u.opt = optim.Adam(u.model.parameters(), lr=0.001)
-        self.loss = nn.CrossEntropyLoss()
+        if self.Optimizer == optim.SGD:
+            self.opt = self.Optimizer(self.model.parameters(), lr=self.learningRate, momentum=self.momentum)
+        else:
+            self.opt = self.Optimizer(self.model.parameters(), lr=self.learningRate)
+        self.loss = self.Loss()
         self.untrainedModel = copy.deepcopy(model).to(self.device)
 
     # Function to train the model for a specific user
     def trainModel(self):
         for i in range(self.epochs):
-            logPrint("Client:{} Epoch:{}".format(self.id, i))
             for iBatch, (x, y) in enumerate(self.dataLoader):
                 x = x.to(self.device)
                 y = y.to(self.device)
                 err, pred = self._trainClassifier(x, y)
-                # logPrint("Client:{}; Epoch{}; Batch:{}; \tError:{}"
-                #          "".format(self.id, i + 1, iBatch + 1, err))
+            logPrint("Client:{}; Epoch{}; Batch:{}; \tError:{}"
+                     "".format(self.id, i + 1, iBatch + 1, err))
         return err, pred
 
     # Function to train the classifier

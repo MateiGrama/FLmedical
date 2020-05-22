@@ -1,5 +1,4 @@
 import torch
-
 import aggregators as agg
 
 
@@ -13,6 +12,8 @@ class DefaultExperimentConfiguration:
         self.epochs = 10  # Epochs num locally run by clients before sending back the model update
         self.batchSize = 200  # Local training  batch size
         self.learningRate = 0.1
+        self.Loss = torch.nn.CrossEntropyLoss
+        self.Optimizer = torch.optim.SGD
 
         # Big datasets size tuning param: (trainSize, testSize); (None, None) interpreted as full dataset
         self.datasetSize = (None, None)

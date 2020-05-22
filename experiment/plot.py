@@ -24,7 +24,7 @@ if default.rounds < 10:
     print("WARNING: small value of default rounds might have been used for testing.")
 
 # OUTPUT LOG PARSING
-fileName = "AFA_BYZ"
+fileName = "test"
 file = open("experiment/{}.log".format(fileName), "r")
 results = []
 currentName = None
@@ -166,6 +166,7 @@ if differentAttacksOnMNISTwithAndWithoutDPExperiment:
 
 
     def filtering(experiment):
+        return True
         return 'AFA' in experiment.name
         return '10' in experiment.name
         return '1_' in experiment.name or ':5' in experiment.name

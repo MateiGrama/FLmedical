@@ -4,12 +4,12 @@ from torch import nn
 class Classifier(nn.Module):
     def __init__(self):
         super(Classifier, self).__init__()
-        self.fc1 = nn.Linear(8, 4)
+        self.fc1 = nn.Linear(8, 200)
         self.relu1 = nn.ReLU()
-        self.fc2 = nn.Linear(4, 3)
+        self.fc2 = nn.Linear(200, 200)
         self.relu2 = nn.ReLU()
-        self.out = nn.Linear(3, 1)
-        self.out_act = nn.Sigmoid()
+        self.out = nn.Linear(200, 2)
+        self.out_act = nn.Softmax(dim=1)
 
     def forward(self, x):
         x = self.fc1(x)

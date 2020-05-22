@@ -391,7 +391,7 @@ class DatasetLoaderDiabetes(DatasetLoader):
 
         clientDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.DiabetesDataset)
         testDataset = self.DiabetesDataset(testDataframe)
-
+        return clientDatasets, testDataset
         anonClientDatasets, clientSyntacticMappings = self.__anonymizeClientDatasets(clientDatasets, columnNames, k=4)
         anonTestDataset = self.__anonymizeTestDataset(testDataset, clientSyntacticMappings)
 
@@ -405,12 +405,14 @@ class DatasetLoaderDiabetes(DatasetLoader):
 
         # Handling Missing Data¶
         data['BMI'] = data.BMI.mask(data.BMI == 0, (data['BMI'].mean(skipna=True)))
-        data['SkinThickness'] = data.SkinThickness.mask(data.SkinThickness == 0,
-                                                        (data['SkinThickness'].mean(skipna=True)))
         data['BloodPressure'] = data.BloodPressure.mask(data.BloodPressure == 0,
                                                         (data['BloodPressure'].mean(skipna=True)))
         data['Glucose'] = data.Glucose.mask(data.Glucose == 0, (data['Glucose'].mean(skipna=True)))
-        data = data.drop(['Insulin'], axis=1)
+
+        # data = data.drop(['Insulin'], axis=1)
+        # data = data.drop(['SkinThickness'], axis=1)
+        # data = data.drop(['DiabetesPedigreeFunction'], axis=1)
+
         labels = data['Outcome']
         data = data.drop(['Outcome'], axis=1)
 
@@ -471,13 +473,13 @@ class DatasetLoaderDiabetes(DatasetLoader):
         return 0, 0
 
     def __anonymizeTestDataset(self, testDataset, clientSyntacticMappings):
-        pass
+        return testDataset
 
     class DiabetesDataset(DatasetInterface):
 
         def __init__(self, dataframe):
             self.dataframe = dataframe
-            self.data = torch.stack([torch.from_numpy(data) for data in dataframe['data'].values], dim=0)
+            self.data = torch.stack([torch.from_numpy(data) for data in dataframe['data'].values], dim=0).float()
             super().__init__(dataframe['labels'].values)
 
         def __len__(self):

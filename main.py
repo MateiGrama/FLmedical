@@ -88,6 +88,8 @@ def __initClients(config, trainDatasets, useDifferentialPrivacy):
                               epochs=config.epochs,
                               batchSize=config.batchSize,
                               learningRate=config.learningRate,
+                              Loss=config.Loss,
+                              Optimizer=config.Optimizer,
                               device=config.device,
                               useDifferentialPrivacy=useDifferentialPrivacy,
                               epsilon1=config.epsilon1,
@@ -655,21 +657,27 @@ def noDP_singleClient_onCOVIDx_100train11test():
 @experiment
 def noDP_noByz_onDiabetes():
     configuration = DefaultExperimentConfiguration()
+    configuration.aggregators = agg.allAggregators()
+    configuration.batchSize = 10
+    configuration.learningRate = 0.001
+    configuration.Optimizer = torch.optim.Adam
+
     __experimentOnDiabetes(configuration)
+
 
 @experiment
 def customExperiment():
     configuration = DefaultExperimentConfiguration()
+    configuration.aggregators = agg.allAggregators()
+    configuration.percUsers = torch.tensor([1.])
+    configuration.batchSize = 32
+    configuration.epochs = 20
+    configuration.rounds = 1
+    configuration.learningRate = 0.001
+    configuration.Optimizer = torch.optim.Adam
 
-    configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+    __experimentOnDiabetes(configuration)
 
-    configuration.malicious = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19]
 
-    configuration.aggregators = [agg.AFAAggregator]
-
-    __experimentOnMNIST(configuration)
-
-noDP_noByz_onDiabetes()
-
+# noDP_noByz_onDiabetes()
+customExperiment()
