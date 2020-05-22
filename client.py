@@ -34,7 +34,7 @@ class Client:
 
         # Used for computing dW, i.e. the change in model before
         # and after client local training, when DP is used
-        self.untrainedModel = copy.deepcopy(model).to(self.device) if model else False
+        self.untrainedModel = copy.deepcopy(model).to('cpu') if model else False
 
         self.opt = None
         self.sim = None
@@ -63,14 +63,16 @@ class Client:
         self.releaseProportion = releaseProportion
 
     def updateModel(self, model):
-        self.model = model
+        self.model = model.to('cpu')
         self.opt = optim.SGD(self.model.parameters(), lr=self.learningRate, momentum=self.momentum)
         # u.opt = optim.Adam(u.model.parameters(), lr=0.001)
         self.loss = nn.CrossEntropyLoss()
-        self.untrainedModel = copy.deepcopy(model).to(self.device)
+        self.untrainedModel = copy.deepcopy(model).to('cpu')
+        torch.cuda.empty_cache()
 
     # Function to train the model for a specific user
     def trainModel(self):
+        self.model = self.model.to(self.device)
         for i in range(self.epochs):
             logPrint("Client:{} Epoch:{}".format(self.id, i))
             for iBatch, (x, y) in enumerate(self.dataLoader):
@@ -80,6 +82,7 @@ class Client:
                 # logPrint("Client:{}; Epoch{}; Batch:{}; \tError:{}"
                 #          "".format(self.id, i + 1, iBatch + 1, err))
         torch.cuda.empty_cache()
+        self.model = self.model.to('cpu')
         return err, pred
 
     # Function to train the classifier
