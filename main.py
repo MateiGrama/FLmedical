@@ -549,7 +549,7 @@ def withLowAndHighAndWithoutDP_30ByzClients_onMNIST():
 
 
 @experiment
-def withAndWithoutDP_withAndWithoutByz_10ByzClients_onCOVIDx():
+def withAndWithoutDP_withAndWithoutByz_7ByzClients_onCOVIDx():
     epsilon1 = 0.0001
     epsilon3 = 0.0001
     releaseProportion = 0.1
@@ -622,6 +622,79 @@ def withAndWithoutDP_withAndWithoutByz_10ByzClients_onCOVIDx():
 
 
 @experiment
+def withAndWithoutDP_withAndWithoutByz_7ByzClients_resnet_onCOVIDx():
+    epsilon1 = 0.0001
+    epsilon3 = 0.0001
+    releaseProportion = 0.1
+
+    learningRate = 0.00002
+    batchSize = 1
+    rounds = 25
+
+    # Without DP without attacks
+    noDPconfig = DefaultExperimentConfiguration()
+    noDPconfig.aggregators = agg.allAggregators()
+    noDPconfig.learningRate = learningRate
+    noDPconfig.batchSize = batchSize
+    noDPconfig.rounds = rounds
+
+    __experimentOnCONVIDx(noDPconfig, model='resnet18')
+
+    # With DP without attacks
+    DPconfig = DefaultExperimentConfiguration()
+    DPconfig.aggregators = agg.allAggregators()
+    DPconfig.learningRate = learningRate
+    DPconfig.batchSize = batchSize
+    DPconfig.rounds = rounds
+
+    DPconfig.privacyPreserve = True
+    DPconfig.releaseProportion = releaseProportion
+    DPconfig.epsilon1 = epsilon1
+    DPconfig.epsilon3 = epsilon3
+    DPconfig.needClip = True
+
+    __experimentOnCONVIDx(DPconfig, model='resnet18')
+
+    # With DP with one attacker
+    DPconfig = DefaultExperimentConfiguration()
+    DPconfig.aggregators = agg.allAggregators()
+    DPconfig.learningRate = learningRate
+    DPconfig.batchSize = batchSize
+    DPconfig.rounds = rounds
+
+    DPconfig.privacyPreserve = True
+    DPconfig.releaseProportion = releaseProportion
+    DPconfig.epsilon1 = epsilon1
+    DPconfig.epsilon3 = epsilon3
+    DPconfig.needClip = True
+
+    DPconfig.malicious = [3]
+    DPconfig.name = "altered:1_malicious"
+
+    __experimentOnCONVIDx(DPconfig, model='resnet18')
+
+    # With DP with more attackers
+    DPbyzConfig = DefaultExperimentConfiguration()
+    DPbyzConfig.aggregators = agg.allAggregators()
+    DPbyzConfig.learningRate = learningRate
+    DPbyzConfig.batchSize = batchSize
+    DPbyzConfig.rounds = rounds
+
+    DPbyzConfig.privacyPreserve = True
+    DPbyzConfig.releaseProportion = releaseProportion
+    DPbyzConfig.epsilon1 = epsilon1
+    DPbyzConfig.epsilon3 = epsilon3
+    DPbyzConfig.needClip = True
+
+    DPbyzConfig.faulty = [5]
+    DPbyzConfig.malicious = [3, 6]
+
+    DPbyzConfig.name = "altered:1_faulty,2_malicious"
+
+    __experimentOnCONVIDx(DPbyzConfig, model='resnet18')
+
+
+@experiment
 def noDP_noByzClient_onCOVIDx():
     configuration = DefaultExperimentConfiguration()
     configuration.batchSize = 64
@@ -657,4 +730,5 @@ def customExperiment():
 
 # withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST()
 
-withAndWithoutDP_withAndWithoutByz_10ByzClients_onCOVIDx()
+# withAndWithoutDP_withAndWithoutByz_7ByzClients_onCOVIDx()
+withAndWithoutDP_withAndWithoutByz_7ByzClients_resnet_onCOVIDx()
