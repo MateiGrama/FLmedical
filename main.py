@@ -549,7 +549,7 @@ def withLowAndHighAndWithoutDP_30ByzClients_onMNIST():
 
 
 @experiment
-def withAndWithoutDP_withAndWithoutByz_5ByzClients_onCOVIDx():
+def withAndWithoutDP_withAndWithoutByz_10ByzClients_onCOVIDx():
     epsilon1 = 0.0001
     epsilon3 = 0.0001
     releaseProportion = 0.1
@@ -558,7 +558,7 @@ def withAndWithoutDP_withAndWithoutByz_5ByzClients_onCOVIDx():
     batchSize = 1
     rounds = 25
 
-    percUsers = torch.tensor([0.2, 0.1, 0.15, 0.15, 0.1])
+    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
 
     # Without DP without attacks
     noDPconfig = DefaultExperimentConfiguration()
@@ -624,9 +624,9 @@ def withAndWithoutDP_withAndWithoutByz_5ByzClients_onCOVIDx():
     noDPconfig.percUsers = percUsers
 
     DPbyzConfig.faulty = [1]
-    DPbyzConfig.malicious = [3]
+    DPbyzConfig.malicious = [2, 4]
 
-    DPbyzConfig.name = "altered:1_faulty,1_malicious"
+    DPbyzConfig.name = "altered:1_faulty,2_malicious"
 
     __experimentOnCONVIDx(DPbyzConfig)
 
@@ -740,4 +740,4 @@ def customExperiment():
 
 # withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST()
 
-withAndWithoutDP_withAndWithoutByz_5ByzClients_onCOVIDx()
+withAndWithoutDP_withAndWithoutByz_10ByzClients_onCOVIDx()

@@ -10,7 +10,7 @@ class DefaultExperimentConfiguration:
 
         # Federated learning parameters
         self.rounds = 35  # Total number of training rounds
-        self.epochs = 1  # Epochs num locally run by clients before sending back the model update
+        self.epochs = 10  # Epochs num locally run by clients before sending back the model update
         self.batchSize = 200  # Local training  batch size
         self.learningRate = 0.1
 
