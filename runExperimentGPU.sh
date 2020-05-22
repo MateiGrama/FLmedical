@@ -13,6 +13,6 @@ TERM=vt100
 
 uptime
 
-nohup python -u main.py > out/experimentCOVIDx_clearCache.log 2>&1
+nohup python -u main.py > out/experimentCOVIDx_clearCache_1epoch.log 2>&1
 #echo $! > out/lastExperimentPID.txt
 
