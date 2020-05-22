@@ -549,7 +549,7 @@ def withLowAndHighAndWithoutDP_30ByzClients_onMNIST():
 
 
 @experiment
-def withAndWithoutDP_withAndWithoutByz_7ByzClients_onCOVIDx():
+def withAndWithoutDP_withAndWithoutByz_5ByzClients_onCOVIDx():
     epsilon1 = 0.0001
     epsilon3 = 0.0001
     releaseProportion = 0.1
@@ -558,12 +558,16 @@ def withAndWithoutDP_withAndWithoutByz_7ByzClients_onCOVIDx():
     batchSize = 1
     rounds = 25
 
+    percUsers = torch.tensor([0.2, 0.1, 0.15, 0.15, 0.1])
+
     # Without DP without attacks
     noDPconfig = DefaultExperimentConfiguration()
     noDPconfig.aggregators = agg.allAggregators()
     noDPconfig.learningRate = learningRate
     noDPconfig.batchSize = batchSize
     noDPconfig.rounds = rounds
+
+    noDPconfig.percUsers = percUsers
 
     __experimentOnCONVIDx(noDPconfig)
 
@@ -580,6 +584,8 @@ def withAndWithoutDP_withAndWithoutByz_7ByzClients_onCOVIDx():
     DPconfig.epsilon3 = epsilon3
     DPconfig.needClip = True
 
+    noDPconfig.percUsers = percUsers
+
     __experimentOnCONVIDx(DPconfig)
 
     # With DP with one attacker
@@ -594,6 +600,8 @@ def withAndWithoutDP_withAndWithoutByz_7ByzClients_onCOVIDx():
     DPconfig.epsilon1 = epsilon1
     DPconfig.epsilon3 = epsilon3
     DPconfig.needClip = True
+
+    noDPconfig.percUsers = percUsers
 
     DPconfig.malicious = [3]
     DPconfig.name = "altered:1_malicious"
@@ -613,10 +621,12 @@ def withAndWithoutDP_withAndWithoutByz_7ByzClients_onCOVIDx():
     DPbyzConfig.epsilon3 = epsilon3
     DPbyzConfig.needClip = True
 
-    DPbyzConfig.faulty = [5]
-    DPbyzConfig.malicious = [3, 6]
+    noDPconfig.percUsers = percUsers
 
-    DPbyzConfig.name = "altered:1_faulty,2_malicious"
+    DPbyzConfig.faulty = [1]
+    DPbyzConfig.malicious = [3]
+
+    DPbyzConfig.name = "altered:1_faulty,1_malicious"
 
     __experimentOnCONVIDx(DPbyzConfig)
 
@@ -730,5 +740,4 @@ def customExperiment():
 
 # withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST()
 
-# withAndWithoutDP_withAndWithoutByz_7ByzClients_onCOVIDx()
-withAndWithoutDP_withAndWithoutByz_7ByzClients_resnet_onCOVIDx()
+withAndWithoutDP_withAndWithoutByz_5ByzClients_onCOVIDx()
