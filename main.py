@@ -555,7 +555,7 @@ def withAndWithoutDP_withAndWithoutByz_10ByzClients_onCOVIDx():
     releaseProportion = 0.1
 
     learningRate = 0.00002
-    batchSize = 1
+    batchSize = 2
     rounds = 25
 
     percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
