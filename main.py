@@ -445,35 +445,40 @@ def withAndWithoutDP_manyAlphaBetaAFA_30ByzAndNotClients_onMNIST():
     privacyBudget = [(0.1, 0.0001, 0.0001, 'low')]
     # Attacks: Malicious/Flipping - flips labels to 0; Faulty/Byzantine - noisy
     attacks = [
-               ([2 * i + 1 for i in range(2)], [], '2_faulty'),
-               # ([2 * i + 1 for i in range(4)], [], '4_faulty'),
-               ([2 * i + 1 for i in range(6)], [], '6_faulty'),
-               # ([2 * i + 1 for i in range(7)], [], '7_faulty'),
-               ([2 * i + 1 for i in range(8)], [], '8_faulty'),
-               # ([2 * i + 1 for i in range(9)], [], '9_faulty'),
-               ([2 * i + 1 for i in range(10)], [], '10_faulty'),
-               # ([2 * i + 1 for i in range(12)], [], '12_faulty'),
-               # ([2 * i + 1 for i in range(14)], [], '14_faulty'),
-               # ([2 * i + 1 for i in range(15)], [], '15_faulty'),
-               ([], [2 * i + 2 for i in range(2)], '2_malicious'),
-               # ([], [2 * i + 2 for i in range(4)], '4_malicious'),
-               ([], [2 * i + 2 for i in range(6)], '6_malicious'),
-               # ([], [2 * i + 2 for i in range(7)], '7_malicious'),
-               ([], [2 * i + 2 for i in range(8)], '8_malicious'),
-               # ([], [2 * i + 2 for i in range(9)], '9_malicious'),
-               ([], [2 * i + 2 for i in range(10)], '10_malicious'),
-               # ([], [2 * i + 2 for i in range(12)], '12_malicious'),
-               # ([], [2 * i + 2 for i in range(14)], '14_malicious'),
-               # ([], [2 * i + 2 for i in range(15)], '15_malicious'),
-               ([2 * i + 1 for i in range(1)], [2 * i + 2 for i in range(1)], '1_faulty,1_malicious'),
-               # ([2 * i + 1 for i in range(2)], [2 * i + 2 for i in range(2)], '2_faulty,2_malicious'),
-               # ([2 * i + 1 for i in range(3)], [2 * i + 2 for i in range(3)], '3_faulty,3_malicious'),
-               ([2 * i + 1 for i in range(4)], [2 * i + 2 for i in range(4)], '4_faulty,4_malicious'),
-               # ([2 * i + 1 for i in range(5)], [2 * i + 2 for i in range(5)], '5_faulty,5_malicious'),
-               # ([2 * i + 1 for i in range(6)], [2 * i + 2 for i in range(6)], '6_faulty,6_malicious'),
-               # ([2 * i + 1 for i in range(7)], [2 * i + 2 for i in range(7)], '7_faulty,7_malicious'),
-               # ([2 * i + 1 for i in range(8)], [2 * i + 2 for i in range(8)], '8_faulty,8_malicious')
-               ]
+        ([2 * i + 1 for i in range(2)], [], '2_faulty'),
+        # ([2 * i + 1 for i in range(4)], [], '4_faulty'),
+        ([2 * i + 1 for i in range(6)], [], '6_faulty'),
+        # ([2 * i + 1 for i in range(7)], [], '7_faulty'),
+        ([2 * i + 1 for i in range(8)], [], '8_faulty'),
+        # ([2 * i + 1 for i in range(9)], [], '9_faulty'),
+        ([2 * i + 1 for i in range(10)], [], '10_faulty'),
+        # ([2 * i + 1 for i in range(12)], [], '12_faulty'),
+        # ([2 * i + 1 for i in range(14)], [], '14_faulty'),
+        # ([2 * i + 1 for i in range(15)], [], '15_faulty'),
+        ([], [2 * i + 2 for i in range(2)], '2_malicious'),
+        # ([], [2 * i + 2 for i in range(4)], '4_malicious'),
+        ([], [2 * i + 2 for i in range(6)], '6_malicious'),
+        # ([], [2 * i + 2 for i in range(7)], '7_malicious'),
+        ([], [2 * i + 2 for i in range(8)], '8_malicious'),
+        # ([], [2 * i + 2 for i in range(9)], '9_malicious'),
+        ([], [2 * i + 2 for i in range(10)], '10_malicious'),
+        # ([], [2 * i + 2 for i in range(12)], '12_malicious'),
+        # ([], [2 * i + 2 for i in range(14)], '14_malicious'),
+        # ([], [2 * i + 2 for i in range(15)], '15_malicious'),
+        ([2 * i + 1 for i in range(1)], [2 * i + 2 for i in range(1)], '1_faulty,1_malicious'),
+        # ([2 * i + 1 for i in range(2)], [2 * i + 2 for i in range(2)], '2_faulty,2_malicious'),
+        # ([2 * i + 1 for i in range(3)], [2 * i + 2 for i in range(3)], '3_faulty,3_malicious'),
+        ([2 * i + 1 for i in range(4)], [2 * i + 2 for i in range(4)], '4_faulty,4_malicious'),
+        # ([2 * i + 1 for i in range(5)], [2 * i + 2 for i in range(5)], '5_faulty,5_malicious'),
+        # ([2 * i + 1 for i in range(6)], [2 * i + 2 for i in range(6)], '6_faulty,6_malicious'),
+        # ([2 * i + 1 for i in range(7)], [2 * i + 2 for i in range(7)], '7_faulty,7_malicious'),
+        # ([2 * i + 1 for i in range(8)], [2 * i + 2 for i in range(8)], '8_faulty,8_malicious')
+    ]
+
+    # Workaround to run experiments in parallel runs:
+    e = 0  # experiment index
+    nAttacks = 2  # number of attack scenarios considered per experiement
+    attacks = attacks[e * nAttacks: e * nAttacks + nAttacks]
 
     alphaBetas = [(2, 2), (2, 3), (3, 2), (3, 3), (3, 4), (4, 3), (4, 4)]
 
@@ -481,20 +486,22 @@ def withAndWithoutDP_manyAlphaBetaAFA_30ByzAndNotClients_onMNIST():
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
 
-    # Without DP without attacks
-    for alphaBeta in alphaBetas:
-        alpha, beta = alphaBeta
+    # Only run the vanilla experiment once
+    if not e:
+        # Without DP without attacks
+        for alphaBeta in alphaBetas:
+            alpha, beta = alphaBeta
 
-        noDPconfig = DefaultExperimentConfiguration()
-        noDPconfig.aggregators = [agg.AFAAggregator]
-        noDPconfig.percUsers = percUsers
+            noDPconfig = DefaultExperimentConfiguration()
+            noDPconfig.aggregators = [agg.AFAAggregator]
+            noDPconfig.percUsers = percUsers
 
-        noDPconfig.alpha = alpha
-        noDPconfig.beta = beta
+            noDPconfig.alpha = alpha
+            noDPconfig.beta = beta
 
-        noDPconfig.name = "alphaBeta:{};".format(alphaBeta)
+            noDPconfig.name = "alphaBeta:{};".format(alphaBeta)
 
-        __experimentOnMNIST(noDPconfig)
+            __experimentOnMNIST(noDPconfig)
 
     # Without DP
     for alphaBeta, attack in product(alphaBetas, attacks):
