@@ -9,7 +9,7 @@ class Classifier(nn.Module):
             self.cnn = models.resnet18(pretrained=True)
             self.cnn.fc = nn.Linear(512, classes)
 
-        elif model == 'mobilenet2':
+        elif model == 'resnext50':
             self.cnn = models.resnext50_32x4d(pretrained=True)
             self.cnn.classifier = nn.Linear(1280, classes)
 

@@ -34,7 +34,7 @@ class Client:
 
         # Used for computing dW, i.e. the change in model before
         # and after client local training, when DP is used
-        self.untrainedModel = copy.deepcopy(model).to(self.device) if model else False
+        self.untrainedModel = copy.deepcopy(model).to('cpu') if model else False
 
         self.opt = None
         self.sim = None
@@ -65,23 +65,28 @@ class Client:
         self.releaseProportion = releaseProportion
 
     def updateModel(self, model):
-        self.model = model
+        self.model = model.to('cpu')
         if self.Optimizer == optim.SGD:
             self.opt = self.Optimizer(self.model.parameters(), lr=self.learningRate, momentum=self.momentum)
         else:
             self.opt = self.Optimizer(self.model.parameters(), lr=self.learningRate)
         self.loss = self.Loss()
-        self.untrainedModel = copy.deepcopy(model).to(self.device)
+        self.untrainedModel = copy.deepcopy(model).to('cpu')
+        torch.cuda.empty_cache()
+
 
     # Function to train the model for a specific user
     def trainModel(self):
+        self.model = self.model.to(self.device)
         for i in range(self.epochs):
             for iBatch, (x, y) in enumerate(self.dataLoader):
                 x = x.to(self.device)
                 y = y.to(self.device)
                 err, pred = self._trainClassifier(x, y)
-            logPrint("Client:{}; Epoch{}; Batch:{}; \tError:{}"
-                     "".format(self.id, i + 1, iBatch + 1, err))
+            # logPrint("Client:{}; Epoch{}; Batch:{}; \tError:{}"
+            #          "".format(self.id, i + 1, iBatch + 1, err))
+        torch.cuda.empty_cache()
+        self.model = self.model.to('cpu')
         return err, pred
 
     # Function to train the classifier

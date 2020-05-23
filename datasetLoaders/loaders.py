@@ -8,11 +8,11 @@ import pandas as pd
 import pydicom as dicom
 import torch
 from PIL import Image
+import cn.protect.quality as quality
 from cn.protect.hierarchy import OrderHierarchy
 from torch.utils.data import Dataset
 from torchvision import transforms, datasets
 from cn.protect import Protect
-from cn.protect.quality import Loss
 from cn.protect.privacy import KAnonymity
 
 from logger import logPrint
@@ -391,7 +391,7 @@ class DatasetLoaderDiabetes(DatasetLoader):
 
         clientDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.DiabetesDataset)
         testDataset = self.DiabetesDataset(testDataframe)
-        return clientDatasets, testDataset
+        # return clientDatasets, testDataset
         anonClientDatasets, clientSyntacticMappings = self.__anonymizeClientDatasets(clientDatasets, columnNames, k=4)
         anonTestDataset = self.__anonymizeTestDataset(testDataset, clientSyntacticMappings)
 
@@ -450,27 +450,48 @@ class DatasetLoaderDiabetes(DatasetLoader):
         return trainDataframe, testDataframe, data.columns
 
     @staticmethod
-    def __anonymizeClientDatasets(clientDatasets, columnNames, k):
+    def __anonymizeClientDatasets(clientDatasets, columnNames, k=2):
+        resultDataframes =[]
+
+        quasiIds = ['Pregnancies', 'Age']
 
         dataframes = [pd.DataFrame(list(ds.dataframe['data']), columns=columnNames) for ds in clientDatasets]
-        protects = [Protect(dataframe, KAnonymity(3)) for dataframe in dataframes]
+        for dataframe in dataframes:
+            anonIndex = dataframe.groupby(quasiIds)[dataframe.columns[0]].transform('size') >= k
 
-        for protect in protects:
-            protect.quality_model = Loss()
+            anonDataframe = dataframe[anonIndex]
+            needProtectDataframe = dataframe[~anonIndex]
+
+            # Might want to ss those for the report:
+            # print(anonDataframe)
+            # print(needProtectDataframe)
+
+            protect = Protect(needProtectDataframe, KAnonymity(k))
+            protect.quality_model = quality.Loss()
+            # protect.quality_model = quality.Classification()
             protect.suppression = 0
 
-            protect.itypes['Pregnancies'] = 'quasi'
-            protect.itypes['Age'] = 'quasi'
+            for qid in quasiIds:
+                protect.itypes[qid] = 'quasi'
+
+            print(protect.itypes)
 
             protect.hierarchies.Pregnancies = OrderHierarchy('interval', 3, 2, 2)
             protect.hierarchies.Age = OrderHierarchy('interval', 5, 2, 2, 2)
 
-        protectedDataframes = [protect.protect() for protect in protects]
-        for i in range(len(dataframes)):
-            print(dataframes[i])
-            print(protectedDataframes[i])
-        exit(0)
-        return 0, 0
+            protectedDataframe = protect.protect()
+
+            #should extract mappings & reconstruct train-ready dataframe (no intervals..)
+            resultDataframe = pd.concat([anonDataframe, protectedDataframe]).sort_index()
+
+            print(needProtectDataframe)
+            print(protectedDataframe)
+
+            print(resultDataframe)
+            exit(0)
+            resultDataframes.append(resultDataframe)
+
+        return resultDataframes, 0
 
     def __anonymizeTestDataset(self, testDataset, clientSyntacticMappings):
         return testDataset

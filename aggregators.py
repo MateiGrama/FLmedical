@@ -38,7 +38,7 @@ class Aggregator:
                 self.__shareModelAndTrainOnClient(client)
 
     def __shareModelAndTrainOnClient(self, client):
-        broadcastModel = copy.deepcopy(self.model).to(self.device)
+        broadcastModel = copy.deepcopy(self.model)
         client.updateModel(broadcastModel)
         error, pred = client.trainModel()
 
@@ -226,7 +226,7 @@ class AFAAggregator(Aggregator):
             logPrint("Round... ", r)
 
             for client in self.clients:
-                broadcastModel = copy.deepcopy(self.model).to(self.device)
+                broadcastModel = copy.deepcopy(self.model)
                 client.updateModel(broadcastModel)
                 if not client.blocked:
                     error, pred = client.trainModel()
