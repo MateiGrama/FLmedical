@@ -750,4 +750,4 @@ def customExperiment():
 
 # withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST()
 
-withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx()
+customExperiment()
