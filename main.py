@@ -638,8 +638,8 @@ def withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx():
     releaseProportion = 0.1
 
     learningRate = 0.00002
-    batchSize = 1
-    rounds = 25
+    batchSize = 2
+    rounds = 10
 
     percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1])
 
