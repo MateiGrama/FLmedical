@@ -78,10 +78,12 @@ def __initClients(config, trainDatasets, useDifferentialPrivacy):
     for i in range(usersNo):
         clients.append(Client(idx=i + 1,
                               trainDataset=trainDatasets[i],
-                              p=p0,
                               epochs=config.epochs,
                               batchSize=config.batchSize,
                               learningRate=config.learningRate,
+                              p=p0,
+                              alpha=config.alpha,
+                              beta=config.beta,
                               device=config.device,
                               useDifferentialPrivacy=useDifferentialPrivacy,
                               epsilon1=config.epsilon1,
@@ -438,6 +440,107 @@ def withAndWithoutDP_AFA_30ByzAndNotClients_onMNIST():
 
 
 @experiment
+def withAndWithoutDP_manyAlphaBetaAFA_30ByzAndNotClients_onMNIST():
+    # Privacy budget = (releaseProportion, epsilon1, epsilon3)
+    privacyBudget = [(0.1, 0.0001, 0.0001, 'low')]
+    # Attacks: Malicious/Flipping - flips labels to 0; Faulty/Byzantine - noisy
+    attacks = [
+               ([2 * i + 1 for i in range(2)], [], '2_faulty'),
+               # ([2 * i + 1 for i in range(4)], [], '4_faulty'),
+               ([2 * i + 1 for i in range(6)], [], '6_faulty'),
+               # ([2 * i + 1 for i in range(7)], [], '7_faulty'),
+               ([2 * i + 1 for i in range(8)], [], '8_faulty'),
+               # ([2 * i + 1 for i in range(9)], [], '9_faulty'),
+               ([2 * i + 1 for i in range(10)], [], '10_faulty'),
+               # ([2 * i + 1 for i in range(12)], [], '12_faulty'),
+               # ([2 * i + 1 for i in range(14)], [], '14_faulty'),
+               # ([2 * i + 1 for i in range(15)], [], '15_faulty'),
+               ([], [2 * i + 2 for i in range(2)], '2_malicious'),
+               # ([], [2 * i + 2 for i in range(4)], '4_malicious'),
+               ([], [2 * i + 2 for i in range(6)], '6_malicious'),
+               # ([], [2 * i + 2 for i in range(7)], '7_malicious'),
+               ([], [2 * i + 2 for i in range(8)], '8_malicious'),
+               # ([], [2 * i + 2 for i in range(9)], '9_malicious'),
+               ([], [2 * i + 2 for i in range(10)], '10_malicious'),
+               # ([], [2 * i + 2 for i in range(12)], '12_malicious'),
+               # ([], [2 * i + 2 for i in range(14)], '14_malicious'),
+               # ([], [2 * i + 2 for i in range(15)], '15_malicious'),
+               ([2 * i + 1 for i in range(1)], [2 * i + 2 for i in range(1)], '1_faulty,1_malicious'),
+               # ([2 * i + 1 for i in range(2)], [2 * i + 2 for i in range(2)], '2_faulty,2_malicious'),
+               # ([2 * i + 1 for i in range(3)], [2 * i + 2 for i in range(3)], '3_faulty,3_malicious'),
+               ([2 * i + 1 for i in range(4)], [2 * i + 2 for i in range(4)], '4_faulty,4_malicious'),
+               # ([2 * i + 1 for i in range(5)], [2 * i + 2 for i in range(5)], '5_faulty,5_malicious'),
+               # ([2 * i + 1 for i in range(6)], [2 * i + 2 for i in range(6)], '6_faulty,6_malicious'),
+               # ([2 * i + 1 for i in range(7)], [2 * i + 2 for i in range(7)], '7_faulty,7_malicious'),
+               # ([2 * i + 1 for i in range(8)], [2 * i + 2 for i in range(8)], '8_faulty,8_malicious')
+               ]
+
+    alphaBetas = [(2, 2), (2, 3), (3, 2), (3, 3), (3, 4), (4, 3), (4, 4)]
+
+    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+
+    # Without DP without attacks
+    for alphaBeta in alphaBetas:
+        alpha, beta = alphaBeta
+
+        noDPconfig = DefaultExperimentConfiguration()
+        noDPconfig.aggregators = [agg.AFAAggregator]
+        noDPconfig.percUsers = percUsers
+
+        noDPconfig.alpha = alpha
+        noDPconfig.beta = beta
+
+        noDPconfig.name = "alphaBeta:{};".format(alphaBeta)
+
+        __experimentOnMNIST(noDPconfig)
+
+    # Without DP
+    for alphaBeta, attack in product(alphaBetas, attacks):
+        faulty, malicious, attackName = attack
+        alpha, beta = alphaBeta
+        noDPconfig = DefaultExperimentConfiguration()
+        noDPconfig.aggregators = [agg.AFAAggregator]
+        noDPconfig.percUsers = percUsers
+
+        noDPconfig.faulty = faulty
+        noDPconfig.malicious = malicious
+        noDPconfig.name = "alphaBeta:{};".format(alphaBeta)
+        noDPconfig.name += "altered:{};".format(attackName)
+
+        __experimentOnMNIST(noDPconfig)
+
+    # With DP
+    for budget, alphaBeta, attack in product(privacyBudget, alphaBetas, attacks):
+        releaseProportion, epsilon1, epsilon3, budgetName = budget
+        faulty, malicious, attackName = attack
+        alpha, beta = alphaBeta
+
+        expConfig = DefaultExperimentConfiguration()
+        expConfig.percUsers = percUsers
+        expConfig.aggregators = [agg.AFAAggregator]
+
+        expConfig.privacyPreserve = True
+        expConfig.releaseProportion = releaseProportion
+        expConfig.epsilon1 = epsilon1
+        expConfig.epsilon3 = epsilon3
+        expConfig.needClip = True
+
+        expConfig.alpha = alpha
+        expConfig.beta = beta
+
+        expConfig.faulty = faulty
+        expConfig.malicious = malicious
+
+        expConfig.name = "alphaBeta:{};".format(alphaBeta)
+        expConfig.name += "altered:{};".format(attackName)
+        expConfig.name += "privacyBudget:{};".format(budgetName)
+
+        __experimentOnMNIST(expConfig)
+
+
+@experiment
 def withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST():
     # Privacy budget = (releaseProportion, epsilon1, epsilon3)
     privacyBudget = [(0.1, 0.0001, 0.0001, 'low'), (0.4, 1, 1, 'high')]
@@ -750,4 +853,4 @@ def customExperiment():
 
 # withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST()
 
-customExperiment()
+withAndWithoutDP_manyAlphaBetaAFA_30ByzAndNotClients_onMNIST()

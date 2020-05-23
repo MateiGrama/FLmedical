@@ -143,7 +143,6 @@ class COMEDAggregator(Aggregator):
         return modelCopy.to(self.device)
 
 
-# ROBUST AGGREGATION ALGORITHM - computes the median of the clients updates
 class MKRUMAggregator(Aggregator):
 
     def trainAndTest(self, testDataset):
