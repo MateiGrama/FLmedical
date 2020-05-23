@@ -476,7 +476,7 @@ def withAndWithoutDP_manyAlphaBetaAFA_30ByzAndNotClients_onMNIST():
     ]
 
     # Workaround to run experiments in parallel runs:
-    e = 3  # experiment index
+    e = 4  # experiment index
     nAttacks = 2  # number of attack scenarios considered per experiement
     attacks = attacks[e * nAttacks: e * nAttacks + nAttacks]
 
