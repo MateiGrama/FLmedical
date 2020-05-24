@@ -2,7 +2,7 @@ from torch import nn
 
 
 class Classifier(nn.Module):
-    inputSize = 50
+    inputSize = 8
 
     def __init__(self):
         super(Classifier, self).__init__()
