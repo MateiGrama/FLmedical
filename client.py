@@ -74,7 +74,6 @@ class Client:
         self.untrainedModel = copy.deepcopy(model).to('cpu')
         torch.cuda.empty_cache()
 
-
     # Function to train the model for a specific user
     def trainModel(self):
         self.model = self.model.to(self.device)
@@ -171,7 +170,6 @@ class Client:
 
         queryNoise = laplace.rvs(scale=(2 * shareParamsNo * s / e1), size=paramNo)
         queryNoise = torch.tensor(queryNoise).to(self.device)
-        # queryNoise = [0 for _ in range(paramNo)]  # )
 
         releaseIndex = torch.empty(0).to(self.device)
         while torch.sum(releaseIndex) < shareParamsNo:

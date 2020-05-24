@@ -57,10 +57,9 @@ for line in file:
             currentErrors = []
             currentBlocked = []
 
-# EXPERIMENT-SPECIFIC: set booleans corresponding to experiment to plot
-
+# set booleans corresponding to experiment to plot
 manyDPconfigsOnEMNISTEwithNoAttackExperiment = False
-differentAttacksOnMNISTwithAndWithoutDPExperiment = True
+titledRunsExperiments = True
 
 if manyDPconfigsOnEMNISTEwithNoAttackExperiment:
     # Recreating tested configurations for labeling
@@ -159,7 +158,7 @@ if manyDPconfigsOnEMNISTEwithNoAttackExperiment:
     fig.update_layout(annotations=annotations)
     fig.show()
 
-if differentAttacksOnMNISTwithAndWithoutDPExperiment:
+if titledRunsExperiments:
 
     # Create figure
     fig = go.Figure()

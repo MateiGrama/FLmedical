@@ -33,6 +33,9 @@ class DefaultExperimentConfiguration:
         self.clipValue = 0.001
         self.needNormalization = False
 
+        # Anonymization of datasets for k-anonymity
+        self.requireDatasetAnonymization = False
+
         self.aggregators = agg.FAandAFA()  # Aggregation strategies
 
         self.plotResults = False

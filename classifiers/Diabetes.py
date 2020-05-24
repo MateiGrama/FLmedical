@@ -2,9 +2,11 @@ from torch import nn
 
 
 class Classifier(nn.Module):
+    inputSize = 50
+
     def __init__(self):
         super(Classifier, self).__init__()
-        self.fc1 = nn.Linear(8, 200)
+        self.fc1 = nn.Linear(self.inputSize, 200)
         self.relu1 = nn.ReLU()
         self.fc2 = nn.Linear(200, 200)
         self.relu2 = nn.ReLU()

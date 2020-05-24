@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from shutil import copyfile
 
@@ -14,6 +15,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms, datasets
 from cn.protect import Protect
 from cn.protect.privacy import KAnonymity
+from functools import reduce
 
 from logger import logPrint
 
@@ -28,6 +30,10 @@ class DatasetInterface(Dataset):
 
     def __getitem__(self, index):
         raise Exception("Method should be implemented in subclass.")
+
+    def getInputSize(self):
+        raise Exception("Method should be implemented by subclasses where "
+                        "models requires input size update (based on dataset).")
 
     def zeroLabels(self):
         self.labels = torch.zeros(len(self.labels), dtype=torch.long)
@@ -384,18 +390,23 @@ class DatasetLoaderCOVIDx(DatasetLoader):
 
 class DatasetLoaderDiabetes(DatasetLoader):
 
+    def __init__(self, requiresAnonymization=False):
+        self.requireDatasetAnonymization = requiresAnonymization
+
     def getDatasets(self, percUsers, labels, size=None):
         logPrint("Loading Diabetes data...")
-        trainDataframe, testDataframe, columnNames = self.__loadDiabetesData()
+        trainDataframe, testDataframe, columns = self.__loadDiabetesData()
         trainDataframe, testDataframe = self._filterDataByLabel(labels, trainDataframe, testDataframe)
 
         clientDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.DiabetesDataset)
         testDataset = self.DiabetesDataset(testDataframe)
-        # return clientDatasets, testDataset
-        anonClientDatasets, clientSyntacticMappings = self.__anonymizeClientDatasets(clientDatasets, columnNames, k=4)
-        anonTestDataset = self.__anonymizeTestDataset(testDataset, clientSyntacticMappings)
 
-        return anonClientDatasets, anonTestDataset
+        if self.requireDatasetAnonymization:
+            clientDatasets, syntacticMappings, generalizedColumns = self.__anonymizeClientDatasets(clientDatasets,
+                                                                                                   columns, k=4)
+            testDataset = self.__anonymizeTestDataset(testDataset, syntacticMappings, columns, generalizedColumns)
+
+        return clientDatasets, testDataset
 
     @staticmethod
     def __loadDiabetesData(dataBinning=False):
@@ -449,13 +460,16 @@ class DatasetLoaderDiabetes(DatasetLoader):
 
         return trainDataframe, testDataframe, data.columns
 
-    @staticmethod
-    def __anonymizeClientDatasets(clientDatasets, columnNames, k=2):
-        resultDataframes =[]
+    def __anonymizeClientDatasets(self, clientDatasets, columns, k):
 
+        # Those might be calculated here; or might index
+        # might be passed as param and not the columnName
         quasiIds = ['Pregnancies', 'Age']
 
-        dataframes = [pd.DataFrame(list(ds.dataframe['data']), columns=columnNames) for ds in clientDatasets]
+        resultDataframes = []
+        clientSyntacticMappings = []
+
+        dataframes = [pd.DataFrame(list(ds.dataframe['data']), columns=columns) for ds in clientDatasets]
         for dataframe in dataframes:
             anonIndex = dataframe.groupby(quasiIds)[dataframe.columns[0]].transform('size') >= k
 
@@ -474,27 +488,93 @@ class DatasetLoaderDiabetes(DatasetLoader):
             for qid in quasiIds:
                 protect.itypes[qid] = 'quasi'
 
-            print(protect.itypes)
-
-            protect.hierarchies.Pregnancies = OrderHierarchy('interval', 3, 2, 2)
-            protect.hierarchies.Age = OrderHierarchy('interval', 5, 2, 2, 2)
+            protect.hierarchies.Age = OrderHierarchy('interval', 1, 5, 2, 2, 2)
+            protect.hierarchies.Pregnancies = OrderHierarchy('interval', 1, 2, 2, 2, 2)
 
             protectedDataframe = protect.protect()
+            mappings = protectedDataframe[quasiIds].drop_duplicates().to_dict('records')
+            clientSyntacticMappings.append(mappings)
+            protectedDataframe = pd.get_dummies(protectedDataframe)
 
-            #should extract mappings & reconstruct train-ready dataframe (no intervals..)
-            resultDataframe = pd.concat([anonDataframe, protectedDataframe]).sort_index()
-
-            print(needProtectDataframe)
-            print(protectedDataframe)
-
-            print(resultDataframe)
-            exit(0)
+            resultDataframe = pd.concat([anonDataframe, protectedDataframe]).fillna(0).sort_index()
             resultDataframes.append(resultDataframe)
 
-        return resultDataframes, 0
+        # All clients datasets should have same columns
+        allColumns = set().union(*[df.columns.values for df in resultDataframes])
+        for resultDataframe in resultDataframes:
+            for col in allColumns - set(resultDataframe.columns.values):
+                resultDataframe[col] = 0
 
-    def __anonymizeTestDataset(self, testDataset, clientSyntacticMappings):
-        return testDataset
+        # Create new datasets by adding the labels to
+        anonClientDatasets = []
+        for resultDataframe, initialDataset in zip(resultDataframes, clientDatasets):
+            labels = initialDataset.dataframe['labels'].values
+            labeledDataframe = pd.DataFrame(zip(resultDataframe.values, labels))
+            labeledDataframe.columns = ['data', 'labels']
+            anonClientDatasets.append(self.DiabetesDataset(labeledDataframe))
+
+        return anonClientDatasets, clientSyntacticMappings, allColumns
+
+    def __anonymizeTestDataset(self, testDataset, clientSyntacticMappings, columns, generalizedColumns):
+        dataframe = pd.DataFrame(list(testDataset.dataframe['data']), columns=columns)
+
+        # One client's mappings should be mutual exclusive,
+        # thus we could stop when found first mapping (not much more efficient)
+
+        generalisedDataframe = pd.DataFrame(dataframe)
+        ungeneralisedIndex = []
+        for i in range(len(dataframe)):
+            legitMappings = []
+            for clientMappings in clientSyntacticMappings:
+                legitMappings += [mapping for mapping in clientMappings
+                                  if self.__legitMapping(dataframe.iloc[i], mapping)]
+            if legitMappings:
+                leastGeneralMapping = reduce(self.__leastGeneral, legitMappings)
+                for col in leastGeneralMapping:
+                    generalisedDataframe[col][i] = leastGeneralMapping[col]
+            else:
+                ungeneralisedIndex.append(i)
+                generalisedDataframe = generalisedDataframe.drop(i)
+
+        generalisedDataframe = pd.get_dummies(generalisedDataframe)
+        ungeneralisedDataframe = dataframe.iloc[ungeneralisedIndex]
+
+        resultDataframe = pd.concat([ungeneralisedDataframe, generalisedDataframe]).fillna(0).sort_index()
+        for col in generalizedColumns - set(resultDataframe.columns.values):
+            resultDataframe[col] = 0
+
+        labels = testDataset.dataframe['labels'].values
+        labeledDataframe = pd.DataFrame(zip(resultDataframe.values, labels))
+        labeledDataframe.columns = ['data', 'labels']
+
+        print(resultDataframe)
+        exit(0)
+        return self.DiabetesDataset(labeledDataframe)
+
+    @staticmethod
+    def __leastGeneral(map1, map2):
+        # TODO: this way of computing the more general mapping relies on the fact
+        # TODO: that the generalised parameters have similar domain sizes.
+        # TODO: the parameters (within the maps or not) should contain the domains
+
+        map1Generality = map2Generality = 0
+        for col in map1:
+            interval = np.array(re.findall(r'\d+.\d+', map1[col]), dtype=np.float)
+            map1Generality += interval[1] - interval[0]  # should be weighted sum
+
+        for col in map2:
+            interval = np.array(re.findall(r'\d+.\d+', map2[col]), dtype=np.float)
+            map2Generality += interval[1] - interval[0]  # should be weighted sum
+
+        return map1 if map1Generality <= map2Generality else map2
+
+    @staticmethod
+    def __legitMapping(entry, mapping):
+        for col in mapping:
+            interval = np.array(re.findall(r'\d+.\d+', mapping[col]), dtype=np.float)
+            if interval[0] < entry[col] or entry[col] >= interval[1]:
+                return False
+        return True
 
     class DiabetesDataset(DatasetInterface):
 
@@ -509,3 +589,5 @@ class DatasetLoaderDiabetes(DatasetLoader):
         def __getitem__(self, index):
             return self.data[index], self.labels[index]
 
+        def getInputSize(self):
+            return len(self.dataframe['data'][0])

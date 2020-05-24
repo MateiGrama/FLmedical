@@ -31,7 +31,7 @@ def __experimentOnCONVIDx(config, model='COVIDNet'):
 
 
 def __experimentOnDiabetes(config):
-    dataLoader = DatasetLoaderDiabetes().getDatasets
+    dataLoader = DatasetLoaderDiabetes(config.requireDatasetAnonymization).getDatasets
     classifier = Diabetes.Classifier
     __experimentSetup(config, dataLoader, classifier)
 
@@ -70,6 +70,9 @@ def __experimentSetup(config, datasetLoader, classifier):
 def __runExperiment(config, datasetLoader, classifier, aggregator, useDifferentialPrivacy):
     trainDatasets, testDataset = datasetLoader(config.percUsers, config.labels, config.datasetSize)
     clients = __initClients(config, trainDatasets, useDifferentialPrivacy)
+    # Requires model input update due to dataset generalisation and categorisation
+    if config.requireDatasetAnonymization:
+        classifier.inputSize = testDataset.getInputSize()
     model = classifier().to(config.device)
     aggregator = aggregator(clients, model, config.rounds, config.device)
     return aggregator.trainAndTest(testDataset)
@@ -757,7 +760,9 @@ def customExperiment():
     # configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
     #                       0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
     #                       0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
-    configuration.aggregators = [agg.AFAAggregator]
+    configuration.requireDatasetAnonymization = True
+    configuration.aggregators = agg.allAggregators()
+    # configuration.aggregators = [agg.FAAggregator]
     configuration.batchSize = 10
     configuration.epochs = 10
     configuration.rounds = 35
@@ -766,6 +771,6 @@ def customExperiment():
     __experimentOnDiabetes(configuration)
 
 
-
 # noDP_noByz_onDiabetes()
 customExperiment()
+
