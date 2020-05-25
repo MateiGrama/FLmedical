@@ -762,16 +762,16 @@ def withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx():
 
     percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1])
 
-    # Without DP without attacks
-    noDPconfig = DefaultExperimentConfiguration()
-    noDPconfig.aggregators = agg.allAggregators()
-    noDPconfig.learningRate = learningRate
-    noDPconfig.batchSize = batchSize
-    noDPconfig.rounds = rounds
-
-    noDPconfig.percUsers = percUsers
-
-    __experimentOnCONVIDx(noDPconfig, model='resnet18')
+    # # Without DP without attacks
+    # noDPconfig = DefaultExperimentConfiguration()
+    # noDPconfig.aggregators = agg.allAggregators()
+    # noDPconfig.learningRate = learningRate
+    # noDPconfig.batchSize = batchSize
+    # noDPconfig.rounds = rounds
+    #
+    # noDPconfig.percUsers = percUsers
+    #
+    # __experimentOnCONVIDx(noDPconfig, model='resnet18')
 
     # With DP without attacks
     DPconfig = DefaultExperimentConfiguration()
@@ -918,6 +918,7 @@ def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes(
     kAnonConfig.rounds = rounds
 
     kAnonConfig.requireDatasetAnonymization = True
+    kAnonConfig.name = "k:4;"
 
     kAnonConfig.percUsers = percUsers
 
@@ -939,8 +940,8 @@ def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes(
     DPconfig.needClip = True
 
     DPconfig.percUsers = percUsers
-
     DPconfig.malicious = [3]
+
     DPconfig.name = "altered:1_malicious"
 
     __experimentOnDiabetes(DPconfig)
@@ -957,7 +958,6 @@ def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes(
     kAnonByzConfig.requireDatasetAnonymization = True
 
     kAnonByzConfig.percUsers = percUsers
-
     kAnonByzConfig.malicious = [3]
 
     kAnonByzConfig.name = "k:4;"
@@ -981,9 +981,8 @@ def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes(
     DPbyzConfig.needClip = True
 
     noDPconfig.percUsers = percUsers
-
-    DPbyzConfig.faulty = [1]
     DPbyzConfig.malicious = [2, 4]
+    DPbyzConfig.faulty = [1]
 
     DPbyzConfig.name = "altered:1_faulty,2_malicious"
 
@@ -1001,9 +1000,8 @@ def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes(
     kAnonByzConfig.requireDatasetAnonymization = True
 
     kAnonByzConfig.percUsers = percUsers
-
-    kAnonByzConfig.faulty = [3]
     kAnonByzConfig.malicious = [2, 4]
+    kAnonByzConfig.faulty = [3]
 
     kAnonByzConfig.name = "k:4;"
     kAnonByzConfig.name += "altered:1_malicious"
@@ -1018,5 +1016,5 @@ def customExperiment():
 
 
 # customExperiment()
-withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx()
-# withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes()
+# withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx()
+withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes()
