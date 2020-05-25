@@ -486,40 +486,38 @@ def withAndWithoutDP_manyAlphaBetaAFA_30ByzAndNotClients_onMNIST():
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
 
-    # # Only run the vanilla experiment once
-    # if not e:
-    #     # Without DP without attacks
-    #     for alphaBeta in alphaBetas:
-    #         alpha, beta = alphaBeta
-    #
-    #         noDPconfig = DefaultExperimentConfiguration()
-    #         noDPconfig.aggregators = [agg.AFAAggregator]
-    #         noDPconfig.percUsers = percUsers
-    #
-    #         noDPconfig.alpha = alpha
-    #         noDPconfig.beta = beta
-    #
-    #         noDPconfig.name = "alphaBeta:{};".format(alphaBeta)
-    #
-    #         __experimentOnMNIST(noDPconfig)
-    #
-    # alphaBetas = [(3, 4), (4, 3), (4, 4)]
-    # # Without DP
-    # for alphaBeta, attack in product(alphaBetas, attacks):
-    #     faulty, malicious, attackName = attack
-    #     alpha, beta = alphaBeta
-    #     noDPconfig = DefaultExperimentConfiguration()
-    #     noDPconfig.aggregators = [agg.AFAAggregator]
-    #     noDPconfig.percUsers = percUsers
-    #
-    #     noDPconfig.faulty = faulty
-    #     noDPconfig.malicious = malicious
-    #     noDPconfig.name = "alphaBeta:{};".format(alphaBeta)
-    #     noDPconfig.name += "altered:{};".format(attackName)
-    #
-    #     __experimentOnMNIST(noDPconfig)
+    # Only run the vanilla experiment once
+    if not e:
+        # Without DP without attacks
+        for alphaBeta in alphaBetas:
+            alpha, beta = alphaBeta
 
-    alphaBetas = [(3, 3), (3, 4), (4, 3), (4, 4)]
+            noDPconfig = DefaultExperimentConfiguration()
+            noDPconfig.aggregators = [agg.AFAAggregator]
+            noDPconfig.percUsers = percUsers
+
+            noDPconfig.alpha = alpha
+            noDPconfig.beta = beta
+
+            noDPconfig.name = "alphaBeta:{};".format(alphaBeta)
+
+            __experimentOnMNIST(noDPconfig)
+
+    # Without DP
+    for alphaBeta, attack in product(alphaBetas, attacks):
+        faulty, malicious, attackName = attack
+        alpha, beta = alphaBeta
+        noDPconfig = DefaultExperimentConfiguration()
+        noDPconfig.aggregators = [agg.AFAAggregator]
+        noDPconfig.percUsers = percUsers
+
+        noDPconfig.faulty = faulty
+        noDPconfig.malicious = malicious
+        noDPconfig.name = "alphaBeta:{};".format(alphaBeta)
+        noDPconfig.name += "altered:{};".format(attackName)
+
+        __experimentOnMNIST(noDPconfig)
+
     # With DP
     for budget, alphaBeta, attack in product(privacyBudget, alphaBetas, attacks):
         releaseProportion, epsilon1, epsilon3, budgetName = budget
