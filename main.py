@@ -476,7 +476,7 @@ def withAndWithoutDP_manyAlphaBetaAFA_30ByzAndNotClients_onMNIST():
     ]
 
     # Workaround to run experiments in parallel runs:
-    e = 3  # experiment index
+    e = 4  # experiment index
     nAttacks = 2  # number of attack scenarios considered per experiement
     attacks = attacks[e * nAttacks: e * nAttacks + nAttacks]
 
@@ -503,23 +503,23 @@ def withAndWithoutDP_manyAlphaBetaAFA_30ByzAndNotClients_onMNIST():
     #
     #         __experimentOnMNIST(noDPconfig)
     #
-    alphaBetas = [(3, 4), (4, 3), (4, 4)]
-    # Without DP
-    for alphaBeta, attack in product(alphaBetas, attacks):
-        faulty, malicious, attackName = attack
-        alpha, beta = alphaBeta
-        noDPconfig = DefaultExperimentConfiguration()
-        noDPconfig.aggregators = [agg.AFAAggregator]
-        noDPconfig.percUsers = percUsers
+    # alphaBetas = [(3, 4), (4, 3), (4, 4)]
+    # # Without DP
+    # for alphaBeta, attack in product(alphaBetas, attacks):
+    #     faulty, malicious, attackName = attack
+    #     alpha, beta = alphaBeta
+    #     noDPconfig = DefaultExperimentConfiguration()
+    #     noDPconfig.aggregators = [agg.AFAAggregator]
+    #     noDPconfig.percUsers = percUsers
+    #
+    #     noDPconfig.faulty = faulty
+    #     noDPconfig.malicious = malicious
+    #     noDPconfig.name = "alphaBeta:{};".format(alphaBeta)
+    #     noDPconfig.name += "altered:{};".format(attackName)
+    #
+    #     __experimentOnMNIST(noDPconfig)
 
-        noDPconfig.faulty = faulty
-        noDPconfig.malicious = malicious
-        noDPconfig.name = "alphaBeta:{};".format(alphaBeta)
-        noDPconfig.name += "altered:{};".format(attackName)
-
-        __experimentOnMNIST(noDPconfig)
-
-    alphaBetas = [(2, 2), (2, 3), (3, 2), (3, 3), (3, 4), (4, 3), (4, 4)]
+    alphaBetas = [(3, 3), (3, 4), (4, 3), (4, 4)]
     # With DP
     for budget, alphaBeta, attack in product(privacyBudget, alphaBetas, attacks):
         releaseProportion, epsilon1, epsilon3, budgetName = budget
