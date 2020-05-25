@@ -777,7 +777,7 @@ def withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx():
     DPconfig.epsilon3 = epsilon3
     DPconfig.needClip = True
 
-    noDPconfig.percUsers = percUsers
+    DPconfig.percUsers = percUsers
 
     __experimentOnCONVIDx(DPconfig, model='resnet18')
 
@@ -794,7 +794,7 @@ def withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx():
     DPconfig.epsilon3 = epsilon3
     DPconfig.needClip = True
 
-    noDPconfig.percUsers = percUsers
+    DPconfig.percUsers = percUsers
 
     DPconfig.malicious = [3]
     DPconfig.name = "altered:1_malicious"
@@ -814,7 +814,7 @@ def withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx():
     DPbyzConfig.epsilon3 = epsilon3
     DPbyzConfig.needClip = True
 
-    noDPconfig.percUsers = percUsers
+    DPbyzConfig.percUsers = percUsers
 
     DPbyzConfig.faulty = [3]
     DPbyzConfig.malicious = [5]
@@ -858,6 +858,4 @@ def customExperiment():
     __experimentOnMNIST(configuration)
 
 
-# withMultipleDPandByzConfigsAndWithout_30ByzClients_onMNIST()
-
-withAndWithoutDP_manyAlphaBetaAFA_30ByzAndNotClients_onMNIST()
+withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx()
