@@ -1016,6 +1016,7 @@ def customExperiment():
     config = DefaultExperimentConfiguration()
     __experimentOnDiabetes(config)
 
-customExperiment()
-# withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx()
+
+# customExperiment()
+withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx()
 # withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes()
