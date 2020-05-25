@@ -1,4 +1,5 @@
 import os
+import random
 import re
 import sys
 from shutil import copyfile
@@ -54,6 +55,7 @@ class DatasetLoader:
 
     @staticmethod
     def _splitTrainDataIntoClientDatasets(percUsers, trainDataframe, DatasetType):
+        DatasetLoader._setRandomSeeds()
         percUsers = percUsers / percUsers.sum()
 
         dataSplitCount = (percUsers * len(trainDataframe)).floor().numpy()
@@ -65,11 +67,19 @@ class DatasetLoader:
                           for clientDataframe in trainDataframes]
         return clientDatasets
 
+    @staticmethod
+    def _setRandomSeeds(seed=0):
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+
 
 class DatasetLoaderMNIST(DatasetLoader):
 
     def getDatasets(self, percUsers, labels, size=None):
         logPrint("Loading MNIST...")
+        self._setRandomSeeds()
         data = self.__loadMNISTData()
         trainDataframe, testDataframe = self._filterDataByLabel(labels, *data)
         clientDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.MNISTDataset)
@@ -82,7 +92,7 @@ class DatasetLoaderMNIST(DatasetLoader):
                                     transforms.Normalize((0.5,), (1.0,))])
 
         # if not exist, download mnist dataset
-        trainSet = datasets.MNIST('data', train=True, transform=trans, download=True, )
+        trainSet = datasets.MNIST('data', train=True, transform=trans, download=True)
         testSet = datasets.MNIST('data', train=False, transform=trans, download=True)
 
         # Scale pixel intensities to [-1, 1]
@@ -130,13 +140,14 @@ class DatasetLoaderCOVIDx(DatasetLoader):
 
     def getDatasets(self, percUsers, labels, size=None):
         logPrint("Loading COVIDx...")
-        data = self.__loadCOVIDxDataPandas(*size)
+        self._setRandomSeeds()
+        data = self.__loadCOVIDxData(*size)
         trainDataframe, testDataframe = self._filterDataByLabel(labels, *data)
         clientDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.COVIDxDataset)
         testDataset = self.COVIDxDataset(testDataframe, isTestDataset=True)
         return clientDatasets, testDataset
 
-    def __loadCOVIDxDataPandas(self, trainSize, testSize):
+    def __loadCOVIDxData(self, trainSize, testSize):
         if self.__datasetNotFound():
             logPrint("Can't find train|test split .txt files or "
                      "/train, /test files not populated accordingly.")
@@ -395,9 +406,9 @@ class DatasetLoaderDiabetes(DatasetLoader):
 
     def getDatasets(self, percUsers, labels, size=None):
         logPrint("Loading Diabetes data...")
+        self._setRandomSeeds()
         trainDataframe, testDataframe, columns = self.__loadDiabetesData()
         trainDataframe, testDataframe = self._filterDataByLabel(labels, trainDataframe, testDataframe)
-
         clientDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.DiabetesDataset)
         testDataset = self.DiabetesDataset(testDataframe)
 
@@ -547,8 +558,6 @@ class DatasetLoaderDiabetes(DatasetLoader):
         labeledDataframe = pd.DataFrame(zip(resultDataframe.values, labels))
         labeledDataframe.columns = ['data', 'labels']
 
-        print(resultDataframe)
-        exit(0)
         return self.DiabetesDataset(labeledDataframe)
 
     @staticmethod
@@ -556,7 +565,6 @@ class DatasetLoaderDiabetes(DatasetLoader):
         # TODO: this way of computing the more general mapping relies on the fact
         # TODO: that the generalised parameters have similar domain sizes.
         # TODO: the parameters (within the maps or not) should contain the domains
-
         map1Generality = map2Generality = 0
         for col in map1:
             interval = np.array(re.findall(r'\d+.\d+', map1[col]), dtype=np.float)

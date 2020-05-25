@@ -126,7 +126,6 @@ def __setRandomSeeds(seed=0):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
 
 
@@ -760,9 +759,10 @@ def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes(
     epsilon3 = 0.0001
     releaseProportion = 0.1
 
-    learningRate = 0.0001
+    learningRate = 0.00001
     batchSize = 10
-    rounds = 20
+    epochs = 5
+    rounds = 7
 
     percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
 
@@ -772,6 +772,7 @@ def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes(
     noDPconfig.Optimizer = torch.optim.Adam
     noDPconfig.learningRate = learningRate
     noDPconfig.batchSize = batchSize
+    noDPconfig.epochs = epochs
     noDPconfig.rounds = rounds
 
     noDPconfig.percUsers = percUsers
@@ -784,6 +785,7 @@ def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes(
     DPconfig.aggregators = agg.allAggregators()
     DPconfig.learningRate = learningRate
     DPconfig.batchSize = batchSize
+    DPconfig.epochs = epochs
     DPconfig.rounds = rounds
 
     DPconfig.privacyPreserve = True
@@ -802,6 +804,7 @@ def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes(
     kAnonConfig.aggregators = agg.allAggregators()
     kAnonConfig.learningRate = learningRate
     kAnonConfig.batchSize = batchSize
+    kAnonConfig.epochs = epochs
     kAnonConfig.rounds = rounds
 
     kAnonConfig.requireDatasetAnonymization = True
@@ -816,6 +819,7 @@ def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes(
     DPconfig.aggregators = agg.allAggregators()
     DPconfig.learningRate = learningRate
     DPconfig.batchSize = batchSize
+    DPconfig.epochs = epochs
     DPconfig.rounds = rounds
 
     DPconfig.privacyPreserve = True
@@ -838,6 +842,7 @@ def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes(
     kAnonByzConfig.learningRate = learningRate
     kAnonByzConfig.batchSize = batchSize
     kAnonByzConfig.rounds = rounds
+    kAnonByzConfig.epochs = epochs
 
     kAnonByzConfig.requireDatasetAnonymization = True
 
@@ -856,6 +861,7 @@ def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes(
     DPbyzConfig.aggregators = agg.allAggregators()
     DPbyzConfig.learningRate = learningRate
     DPbyzConfig.batchSize = batchSize
+    DPbyzConfig.epochs = epochs
     DPbyzConfig.rounds = rounds
 
     DPbyzConfig.privacyPreserve = True
@@ -879,6 +885,7 @@ def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes(
     kAnonByzConfig.aggregators = agg.allAggregators()
     kAnonByzConfig.learningRate = learningRate
     kAnonByzConfig.batchSize = batchSize
+    kAnonByzConfig.epochs = epochs
     kAnonByzConfig.rounds = rounds
 
     kAnonByzConfig.requireDatasetAnonymization = True
@@ -952,8 +959,6 @@ def customExperiment():
     kAnonConfig.percUsers = percUsers
 
     __experimentOnDiabetes(kAnonConfig)
-
-
 
 withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes()
 
