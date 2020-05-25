@@ -762,17 +762,6 @@ def withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx():
 
     percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1])
 
-    # # Without DP without attacks
-    # noDPconfig = DefaultExperimentConfiguration()
-    # noDPconfig.aggregators = agg.allAggregators()
-    # noDPconfig.learningRate = learningRate
-    # noDPconfig.batchSize = batchSize
-    # noDPconfig.rounds = rounds
-    #
-    # noDPconfig.percUsers = percUsers
-    #
-    # __experimentOnCONVIDx(noDPconfig, model='resnet18')
-
     # With DP without attacks
     DPconfig = DefaultExperimentConfiguration()
     DPconfig.aggregators = agg.allAggregators()
@@ -831,6 +820,17 @@ def withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx():
     DPbyzConfig.name = "altered:1_faulty,1_malicious"
 
     __experimentOnCONVIDx(DPbyzConfig, model='resnet18')
+
+    # Without DP without attacks
+    noDPconfig = DefaultExperimentConfiguration()
+    noDPconfig.aggregators = agg.allAggregators()
+    noDPconfig.learningRate = learningRate
+    noDPconfig.batchSize = batchSize
+    noDPconfig.rounds = rounds
+
+    noDPconfig.percUsers = percUsers
+
+    __experimentOnCONVIDx(noDPconfig, model='resnet18')
 
 
 @experiment
@@ -1016,5 +1016,5 @@ def customExperiment():
 
 
 # customExperiment()
-# withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx()
-withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes()
+withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx()
+# withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes()
