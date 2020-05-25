@@ -1,6 +1,6 @@
 from experiment.DefaultExperimentConfiguration import DefaultExperimentConfiguration
-from datasetLoaders.loaders import DatasetLoaderMNIST, DatasetLoaderCOVIDx
-from classifiers import MNIST, CovidNet, CNN
+from datasetLoaders.loaders import DatasetLoaderMNIST, DatasetLoaderCOVIDx, DatasetLoaderDiabetes
+from classifiers import MNIST, CovidNet, CNN, Diabetes
 from logger import logPrint
 from client import Client
 import aggregators as agg
@@ -28,6 +28,12 @@ def __experimentOnCONVIDx(config, model='COVIDNet'):
     else:
         raise Exception("Invalid Covid model name.")
     __experimentSetup(config, datasetLoader, classifier)
+
+
+def __experimentOnDiabetes(config):
+    dataLoader = DatasetLoaderDiabetes(config.requireDatasetAnonymization).getDatasets
+    classifier = Diabetes.Classifier
+    __experimentSetup(config, dataLoader, classifier)
 
 
 def __experimentSetup(config, datasetLoader, classifier):
@@ -64,6 +70,9 @@ def __experimentSetup(config, datasetLoader, classifier):
 def __runExperiment(config, datasetLoader, classifier, aggregator, useDifferentialPrivacy):
     trainDatasets, testDataset = datasetLoader(config.percUsers, config.labels, config.datasetSize)
     clients = __initClients(config, trainDatasets, useDifferentialPrivacy)
+    # Requires model input update due to dataset generalisation and categorisation
+    if config.requireDatasetAnonymization:
+        classifier.inputSize = testDataset.getInputSize()
     model = classifier().to(config.device)
     aggregator = aggregator(clients, model, config.rounds, config.device)
     return aggregator.trainAndTest(testDataset)
@@ -72,7 +81,6 @@ def __runExperiment(config, datasetLoader, classifier, aggregator, useDifferenti
 def __initClients(config, trainDatasets, useDifferentialPrivacy):
     usersNo = config.percUsers.size(0)
     p0 = 1 / usersNo
-    # Seed
     logPrint("Creating clients...")
     clients = []
     for i in range(usersNo):
@@ -84,6 +92,8 @@ def __initClients(config, trainDatasets, useDifferentialPrivacy):
                               p=p0,
                               alpha=config.alpha,
                               beta=config.beta,
+                              Loss=config.Loss,
+                              Optimizer=config.Optimizer,
                               device=config.device,
                               useDifferentialPrivacy=useDifferentialPrivacy,
                               epsilon1=config.epsilon1,
@@ -117,7 +127,6 @@ def __initClients(config, trainDatasets, useDifferentialPrivacy):
 def __setRandomSeeds(seed=0):
     random.seed(seed)
     np.random.seed(seed)
-    torch.manual_seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
 
@@ -844,18 +853,169 @@ def noDP_singleClient_onCOVIDx_100train11test():
 
 
 @experiment
-def customExperiment():
+def noDP_noByz_onDiabetes():
     configuration = DefaultExperimentConfiguration()
+    configuration.aggregators = agg.allAggregators()
+    configuration.batchSize = 10
+    configuration.learningRate = 0.001
+    configuration.Optimizer = torch.optim.Adam
 
-    configuration.percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
-                                            0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
-
-    configuration.malicious = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19]
-
-    configuration.aggregators = [agg.AFAAggregator]
-
-    __experimentOnMNIST(configuration)
+    __experimentOnDiabetes(configuration)
 
 
-withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx()
+@experiment
+def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes():
+    epsilon1 = 0.0001
+    epsilon3 = 0.0001
+    releaseProportion = 0.1
+
+    learningRate = 0.00001
+    batchSize = 10
+    epochs = 5
+    rounds = 7
+
+    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+
+    # Vanilla
+    noDPconfig = DefaultExperimentConfiguration()
+    noDPconfig.aggregators = agg.allAggregators()
+    noDPconfig.Optimizer = torch.optim.Adam
+    noDPconfig.learningRate = learningRate
+    noDPconfig.batchSize = batchSize
+    noDPconfig.epochs = epochs
+    noDPconfig.rounds = rounds
+
+    noDPconfig.percUsers = percUsers
+
+    __experimentOnDiabetes(noDPconfig)
+
+    # With DP
+    DPconfig = DefaultExperimentConfiguration()
+    DPconfig.Optimizer = torch.optim.Adam
+    DPconfig.aggregators = agg.allAggregators()
+    DPconfig.learningRate = learningRate
+    DPconfig.batchSize = batchSize
+    DPconfig.epochs = epochs
+    DPconfig.rounds = rounds
+
+    DPconfig.privacyPreserve = True
+    DPconfig.releaseProportion = releaseProportion
+    DPconfig.epsilon1 = epsilon1
+    DPconfig.epsilon3 = epsilon3
+    DPconfig.needClip = True
+
+    DPconfig.percUsers = percUsers
+
+    __experimentOnDiabetes(DPconfig)
+
+    # With k-anonymity
+    kAnonConfig = DefaultExperimentConfiguration()
+    kAnonConfig.Optimizer = torch.optim.Adam
+    kAnonConfig.aggregators = agg.allAggregators()
+    kAnonConfig.learningRate = learningRate
+    kAnonConfig.batchSize = batchSize
+    kAnonConfig.epochs = epochs
+    kAnonConfig.rounds = rounds
+
+    kAnonConfig.requireDatasetAnonymization = True
+
+    kAnonConfig.percUsers = percUsers
+
+    __experimentOnDiabetes(kAnonConfig)
+
+    # With DP with one attacker
+    DPconfig = DefaultExperimentConfiguration()
+    DPconfig.Optimizer = torch.optim.Adam
+    DPconfig.aggregators = agg.allAggregators()
+    DPconfig.learningRate = learningRate
+    DPconfig.batchSize = batchSize
+    DPconfig.epochs = epochs
+    DPconfig.rounds = rounds
+
+    DPconfig.privacyPreserve = True
+    DPconfig.releaseProportion = releaseProportion
+    DPconfig.epsilon1 = epsilon1
+    DPconfig.epsilon3 = epsilon3
+    DPconfig.needClip = True
+
+    DPconfig.percUsers = percUsers
+
+    DPconfig.malicious = [3]
+    DPconfig.name = "altered:1_malicious"
+
+    __experimentOnDiabetes(DPconfig)
+
+    # With k-anonymity with one attacker
+    kAnonByzConfig = DefaultExperimentConfiguration()
+    kAnonByzConfig.Optimizer = torch.optim.Adam
+    kAnonByzConfig.aggregators = agg.allAggregators()
+    kAnonByzConfig.learningRate = learningRate
+    kAnonByzConfig.batchSize = batchSize
+    kAnonByzConfig.rounds = rounds
+    kAnonByzConfig.epochs = epochs
+
+    kAnonByzConfig.requireDatasetAnonymization = True
+
+    kAnonByzConfig.percUsers = percUsers
+
+    kAnonByzConfig.malicious = [3]
+
+    kAnonByzConfig.name = "k:4;"
+    kAnonByzConfig.name += "altered:1_malicious"
+
+    __experimentOnDiabetes(kAnonByzConfig)
+
+    # With DP with more attackers
+    DPbyzConfig = DefaultExperimentConfiguration()
+    DPbyzConfig.Optimizer = torch.optim.Adam
+    DPbyzConfig.aggregators = agg.allAggregators()
+    DPbyzConfig.learningRate = learningRate
+    DPbyzConfig.batchSize = batchSize
+    DPbyzConfig.epochs = epochs
+    DPbyzConfig.rounds = rounds
+
+    DPbyzConfig.privacyPreserve = True
+    DPbyzConfig.releaseProportion = releaseProportion
+    DPbyzConfig.epsilon1 = epsilon1
+    DPbyzConfig.epsilon3 = epsilon3
+    DPbyzConfig.needClip = True
+
+    noDPconfig.percUsers = percUsers
+
+    DPbyzConfig.faulty = [1]
+    DPbyzConfig.malicious = [2, 4]
+
+    DPbyzConfig.name = "altered:1_faulty,2_malicious"
+
+    __experimentOnDiabetes(DPbyzConfig)
+
+    # With k-anonymity with more attackers
+    kAnonByzConfig = DefaultExperimentConfiguration()
+    kAnonByzConfig.Optimizer = torch.optim.Adam
+    kAnonByzConfig.aggregators = agg.allAggregators()
+    kAnonByzConfig.learningRate = learningRate
+    kAnonByzConfig.batchSize = batchSize
+    kAnonByzConfig.epochs = epochs
+    kAnonByzConfig.rounds = rounds
+
+    kAnonByzConfig.requireDatasetAnonymization = True
+
+    kAnonByzConfig.percUsers = percUsers
+
+    kAnonByzConfig.faulty = [3]
+    kAnonByzConfig.malicious = [2, 4]
+
+    kAnonByzConfig.name = "k:4;"
+    kAnonByzConfig.name += "altered:1_malicious"
+
+    __experimentOnDiabetes(kAnonByzConfig)
+
+
+@experiment
+def customExperiment():
+    config = DefaultExperimentConfiguration()
+    __experimentOnDiabetes(config)
+
+customExperiment()
+# withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx()
+# withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes()
