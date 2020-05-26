@@ -24,7 +24,7 @@ if default.rounds < 10:
     print("WARNING: small value of default rounds might have been used for testing.")
 
 # OUTPUT LOG PARSING
-fileName = "test"
+fileName = "alphaBetaExperiment"
 file = open("experiment/{}.log".format(fileName), "r")
 results = []
 currentName = None
