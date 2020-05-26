@@ -78,12 +78,11 @@ class Client:
     def trainModel(self):
         self.model = self.model.to(self.device)
         for i in range(self.epochs):
+            logPrint("Client:{}; Epoch{}".format(self.id, i + 1))
             for iBatch, (x, y) in enumerate(self.dataLoader):
                 x = x.to(self.device)
                 y = y.to(self.device)
                 err, pred = self._trainClassifier(x, y)
-            # logPrint("Client:{}; Epoch{}; Batch:{}; \tError:{}"
-            #          "".format(self.id, i + 1, iBatch + 1, err))
         torch.cuda.empty_cache()
         self.model = self.model.to('cpu')
         return err, pred
