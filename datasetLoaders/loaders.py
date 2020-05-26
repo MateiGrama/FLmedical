@@ -1,4 +1,6 @@
 import os
+import random
+import re
 import sys
 from shutil import copyfile
 
@@ -8,8 +10,13 @@ import pandas as pd
 import pydicom as dicom
 import torch
 from PIL import Image
+import cn.protect.quality as quality
+from cn.protect.hierarchy import OrderHierarchy
 from torch.utils.data import Dataset
 from torchvision import transforms, datasets
+from cn.protect import Protect
+from cn.protect.privacy import KAnonymity
+from functools import reduce
 
 from logger import logPrint
 
@@ -24,6 +31,10 @@ class DatasetInterface(Dataset):
 
     def __getitem__(self, index):
         raise Exception("Method should be implemented in subclass.")
+
+    def getInputSize(self):
+        raise Exception("Method should be implemented by subclasses where "
+                        "models requires input size update (based on dataset).")
 
     def zeroLabels(self):
         self.labels = torch.zeros(len(self.labels), dtype=torch.long)
@@ -44,6 +55,7 @@ class DatasetLoader:
 
     @staticmethod
     def _splitTrainDataIntoClientDatasets(percUsers, trainDataframe, DatasetType):
+        DatasetLoader._setRandomSeeds()
         percUsers = percUsers / percUsers.sum()
 
         dataSplitCount = (percUsers * len(trainDataframe)).floor().numpy()
@@ -55,16 +67,24 @@ class DatasetLoader:
                           for clientDataframe in trainDataframes]
         return clientDatasets
 
+    @staticmethod
+    def _setRandomSeeds(seed=0):
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+
 
 class DatasetLoaderMNIST(DatasetLoader):
 
     def getDatasets(self, percUsers, labels, size=None):
         logPrint("Loading MNIST...")
+        self._setRandomSeeds()
         data = self.__loadMNISTData()
         trainDataframe, testDataframe = self._filterDataByLabel(labels, *data)
-        clientsDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.MNISTDataset)
+        clientDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.MNISTDataset)
         testDataset = self.MNISTDataset(testDataframe)
-        return clientsDatasets, testDataset
+        return clientDatasets, testDataset
 
     @staticmethod
     def __loadMNISTData():
@@ -72,7 +92,7 @@ class DatasetLoaderMNIST(DatasetLoader):
                                     transforms.Normalize((0.5,), (1.0,))])
 
         # if not exist, download mnist dataset
-        trainSet = datasets.MNIST('data', train=True, transform=trans, download=True, )
+        trainSet = datasets.MNIST('data', train=True, transform=trans, download=True)
         testSet = datasets.MNIST('data', train=False, transform=trans, download=True)
 
         # Scale pixel intensities to [-1, 1]
@@ -120,13 +140,14 @@ class DatasetLoaderCOVIDx(DatasetLoader):
 
     def getDatasets(self, percUsers, labels, size=None):
         logPrint("Loading COVIDx...")
-        data = self.__loadCOVIDxDataPandas(*size)
+        self._setRandomSeeds()
+        data = self.__loadCOVIDxData(*size)
         trainDataframe, testDataframe = self._filterDataByLabel(labels, *data)
-        clientsDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.COVIDxDataset)
+        clientDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.COVIDxDataset)
         testDataset = self.COVIDxDataset(testDataframe, isTestDataset=True)
-        return clientsDatasets, testDataset
+        return clientDatasets, testDataset
 
-    def __loadCOVIDxDataPandas(self, trainSize, testSize):
+    def __loadCOVIDxData(self, trainSize, testSize):
         if self.__datasetNotFound():
             logPrint("Can't find train|test split .txt files or "
                      "/train, /test files not populated accordingly.")
@@ -376,3 +397,205 @@ class DatasetLoaderCOVIDx(DatasetLoader):
             #     imageTensor = imageTensor.mean(dim=0,keepdim=True)
             imageTensor = transform(image)
             return imageTensor
+
+
+class DatasetLoaderDiabetes(DatasetLoader):
+
+    def __init__(self, requiresAnonymization=False):
+        self.requireDatasetAnonymization = requiresAnonymization
+
+    def getDatasets(self, percUsers, labels, size=None):
+        logPrint("Loading Diabetes data...")
+        self._setRandomSeeds()
+        trainDataframe, testDataframe, columns = self.__loadDiabetesData()
+        trainDataframe, testDataframe = self._filterDataByLabel(labels, trainDataframe, testDataframe)
+        clientDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.DiabetesDataset)
+        testDataset = self.DiabetesDataset(testDataframe)
+
+        if self.requireDatasetAnonymization:
+            clientDatasets, syntacticMappings, generalizedColumns = self.__anonymizeClientDatasets(clientDatasets,
+                                                                                                   columns, k=4)
+            testDataset = self.__anonymizeTestDataset(testDataset, syntacticMappings, columns, generalizedColumns)
+
+        return clientDatasets, testDataset
+
+    @staticmethod
+    def __loadDiabetesData(dataBinning=False):
+        data = pd.read_csv('data/Diabetes/diabetes.csv')
+        # Shuffle
+        data = data.sample(frac=1).reset_index(drop=True)
+
+        # Handling Missing Data¶
+        data['BMI'] = data.BMI.mask(data.BMI == 0, (data['BMI'].mean(skipna=True)))
+        data['BloodPressure'] = data.BloodPressure.mask(data.BloodPressure == 0,
+                                                        (data['BloodPressure'].mean(skipna=True)))
+        data['Glucose'] = data.Glucose.mask(data.Glucose == 0, (data['Glucose'].mean(skipna=True)))
+
+        # data = data.drop(['Insulin'], axis=1)
+        # data = data.drop(['SkinThickness'], axis=1)
+        # data = data.drop(['DiabetesPedigreeFunction'], axis=1)
+
+        labels = data['Outcome']
+        data = data.drop(['Outcome'], axis=1)
+
+        if dataBinning:
+            data['Age'] = data['Age'].astype(int)
+            data.loc[data['Age'] <= 16, 'Age'] = 0
+            data.loc[(data['Age'] > 16) & (data['Age'] <= 32), 'Age'] = 1
+            data.loc[(data['Age'] > 32) & (data['Age'] <= 48), 'Age'] = 2
+            data.loc[(data['Age'] > 48) & (data['Age'] <= 64), 'Age'] = 3
+            data.loc[data['Age'] > 64, 'Age'] = 4
+
+            data['Glucose'] = data['Glucose'].astype(int)
+            data.loc[data['Glucose'] <= 80, 'Glucose'] = 0
+            data.loc[(data['Glucose'] > 80) & (data['Glucose'] <= 100), 'Glucose'] = 1
+            data.loc[(data['Glucose'] > 100) & (data['Glucose'] <= 125), 'Glucose'] = 2
+            data.loc[(data['Glucose'] > 125) & (data['Glucose'] <= 150), 'Glucose'] = 3
+            data.loc[data['Glucose'] > 150, 'Glucose'] = 4
+
+            data['BloodPressure'] = data['BloodPressure'].astype(int)
+            data.loc[data['BloodPressure'] <= 50, 'BloodPressure'] = 0
+            data.loc[(data['BloodPressure'] > 50) & (data['BloodPressure'] <= 65), 'BloodPressure'] = 1
+            data.loc[(data['BloodPressure'] > 65) & (data['BloodPressure'] <= 80), 'BloodPressure'] = 2
+            data.loc[(data['BloodPressure'] > 80) & (data['BloodPressure'] <= 100), 'BloodPressure'] = 3
+            data.loc[data['BloodPressure'] > 100, 'BloodPressure'] = 4
+
+        xTrain = data.head(int(len(data) * .8)).values
+        xTest = data.tail(int(len(data) * .2)).values
+        yTrain = labels.head(int(len(data) * .8)).values
+        yTest = labels.tail(int(len(data) * .2)).values
+
+        trainDataframe = pd.DataFrame(zip(xTrain, yTrain))
+        testDataframe = pd.DataFrame(zip(xTest, yTest))
+        trainDataframe.columns = testDataframe.columns = ['data', 'labels']
+
+        return trainDataframe, testDataframe, data.columns
+
+    def __anonymizeClientDatasets(self, clientDatasets, columns, k):
+
+        # Those might be calculated here; or might index
+        # might be passed as param and not the columnName
+        quasiIds = ['Pregnancies', 'Age']
+
+        resultDataframes = []
+        clientSyntacticMappings = []
+
+        dataframes = [pd.DataFrame(list(ds.dataframe['data']), columns=columns) for ds in clientDatasets]
+        for dataframe in dataframes:
+            anonIndex = dataframe.groupby(quasiIds)[dataframe.columns[0]].transform('size') >= k
+
+            anonDataframe = dataframe[anonIndex]
+            needProtectDataframe = dataframe[~anonIndex]
+
+            # Might want to ss those for the report:
+            # print(anonDataframe)
+            # print(needProtectDataframe)
+
+            protect = Protect(needProtectDataframe, KAnonymity(k))
+            protect.quality_model = quality.Loss()
+            # protect.quality_model = quality.Classification()
+            protect.suppression = 0
+
+            for qid in quasiIds:
+                protect.itypes[qid] = 'quasi'
+
+            protect.hierarchies.Age = OrderHierarchy('interval', 1, 5, 2, 2, 2)
+            protect.hierarchies.Pregnancies = OrderHierarchy('interval', 1, 2, 2, 2, 2)
+
+            protectedDataframe = protect.protect()
+            mappings = protectedDataframe[quasiIds].drop_duplicates().to_dict('records')
+            clientSyntacticMappings.append(mappings)
+            protectedDataframe = pd.get_dummies(protectedDataframe)
+
+            resultDataframe = pd.concat([anonDataframe, protectedDataframe]).fillna(0).sort_index()
+            resultDataframes.append(resultDataframe)
+
+        # All clients datasets should have same columns
+        allColumns = set().union(*[df.columns.values for df in resultDataframes])
+        for resultDataframe in resultDataframes:
+            for col in allColumns - set(resultDataframe.columns.values):
+                resultDataframe[col] = 0
+
+        # Create new datasets by adding the labels to
+        anonClientDatasets = []
+        for resultDataframe, initialDataset in zip(resultDataframes, clientDatasets):
+            labels = initialDataset.dataframe['labels'].values
+            labeledDataframe = pd.DataFrame(zip(resultDataframe.values, labels))
+            labeledDataframe.columns = ['data', 'labels']
+            anonClientDatasets.append(self.DiabetesDataset(labeledDataframe))
+
+        return anonClientDatasets, clientSyntacticMappings, allColumns
+
+    def __anonymizeTestDataset(self, testDataset, clientSyntacticMappings, columns, generalizedColumns):
+        dataframe = pd.DataFrame(list(testDataset.dataframe['data']), columns=columns)
+
+        # One client's mappings should be mutual exclusive,
+        # thus we could stop when found first mapping (not much more efficient)
+
+        generalisedDataframe = pd.DataFrame(dataframe)
+        ungeneralisedIndex = []
+        for i in range(len(dataframe)):
+            legitMappings = []
+            for clientMappings in clientSyntacticMappings:
+                legitMappings += [mapping for mapping in clientMappings
+                                  if self.__legitMapping(dataframe.iloc[i], mapping)]
+            if legitMappings:
+                leastGeneralMapping = reduce(self.__leastGeneral, legitMappings)
+                for col in leastGeneralMapping:
+                    generalisedDataframe[col][i] = leastGeneralMapping[col]
+            else:
+                ungeneralisedIndex.append(i)
+                generalisedDataframe = generalisedDataframe.drop(i)
+
+        generalisedDataframe = pd.get_dummies(generalisedDataframe)
+        ungeneralisedDataframe = dataframe.iloc[ungeneralisedIndex]
+
+        resultDataframe = pd.concat([ungeneralisedDataframe, generalisedDataframe]).fillna(0).sort_index()
+        for col in generalizedColumns - set(resultDataframe.columns.values):
+            resultDataframe[col] = 0
+
+        labels = testDataset.dataframe['labels'].values
+        labeledDataframe = pd.DataFrame(zip(resultDataframe.values, labels))
+        labeledDataframe.columns = ['data', 'labels']
+
+        return self.DiabetesDataset(labeledDataframe)
+
+    @staticmethod
+    def __leastGeneral(map1, map2):
+        # TODO: this way of computing the more general mapping relies on the fact
+        # TODO: that the generalised parameters have similar domain sizes.
+        # TODO: the parameters (within the maps or not) should contain the domains
+        map1Generality = map2Generality = 0
+        for col in map1:
+            interval = np.array(re.findall(r'\d+.\d+', map1[col]), dtype=np.float)
+            map1Generality += interval[1] - interval[0]  # should be weighted sum
+
+        for col in map2:
+            interval = np.array(re.findall(r'\d+.\d+', map2[col]), dtype=np.float)
+            map2Generality += interval[1] - interval[0]  # should be weighted sum
+
+        return map1 if map1Generality <= map2Generality else map2
+
+    @staticmethod
+    def __legitMapping(entry, mapping):
+        for col in mapping:
+            interval = np.array(re.findall(r'\d+.\d+', mapping[col]), dtype=np.float)
+            if interval[0] < entry[col] or entry[col] >= interval[1]:
+                return False
+        return True
+
+    class DiabetesDataset(DatasetInterface):
+
+        def __init__(self, dataframe):
+            self.dataframe = dataframe
+            self.data = torch.stack([torch.from_numpy(data) for data in dataframe['data'].values], dim=0).float()
+            super().__init__(dataframe['labels'].values)
+
+        def __len__(self):
+            return len(self.data)
+
+        def __getitem__(self, index):
+            return self.data[index], self.labels[index]
+
+        def getInputSize(self):
+            return len(self.dataframe['data'][0])
