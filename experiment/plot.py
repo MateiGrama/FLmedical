@@ -24,7 +24,7 @@ if default.rounds < 10:
     print("WARNING: small value of default rounds might have been used for testing.")
 
 # OUTPUT LOG PARSING
-fileName = "AFA_BYZ"
+fileName = "test"
 file = open("experiment/{}.log".format(fileName), "r")
 results = []
 currentName = None
@@ -57,10 +57,9 @@ for line in file:
             currentErrors = []
             currentBlocked = []
 
-# EXPERIMENT-SPECIFIC: set booleans corresponding to experiment to plot
-
+# set booleans corresponding to experiment to plot
 manyDPconfigsOnEMNISTEwithNoAttackExperiment = False
-differentAttacksOnMNISTwithAndWithoutDPExperiment = True
+titledRunsExperiments = True
 
 if manyDPconfigsOnEMNISTEwithNoAttackExperiment:
     # Recreating tested configurations for labeling
@@ -159,13 +158,14 @@ if manyDPconfigsOnEMNISTEwithNoAttackExperiment:
     fig.update_layout(annotations=annotations)
     fig.show()
 
-if differentAttacksOnMNISTwithAndWithoutDPExperiment:
+if titledRunsExperiments:
 
     # Create figure
     fig = go.Figure()
 
 
     def filtering(experiment):
+        return True
         return 'AFA' in experiment.name
         return '10' in experiment.name
         return '1_' in experiment.name or ':5' in experiment.name
