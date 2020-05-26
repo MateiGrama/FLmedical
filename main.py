@@ -1016,5 +1016,5 @@ def customExperiment():
 
 
 # customExperiment()
-withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx()
-# withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes()
+# withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx()
+withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes()
