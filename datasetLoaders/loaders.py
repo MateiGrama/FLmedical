@@ -10,13 +10,14 @@ import pandas as pd
 import pydicom as dicom
 import torch
 from PIL import Image
-import cn.protect.quality as quality
-from cn.protect.hierarchy import OrderHierarchy
 from torch.utils.data import Dataset
 from torchvision import transforms, datasets
-from cn.protect import Protect
-from cn.protect.privacy import KAnonymity
 from functools import reduce
+
+# import cn.protect.quality as quality
+# from cn.protect.hierarchy import OrderHierarchy
+# from cn.protect import Protect
+# from cn.protect.privacy import KAnonymity
 
 from logger import logPrint
 
@@ -412,10 +413,10 @@ class DatasetLoaderDiabetes(DatasetLoader):
         clientDatasets = self._splitTrainDataIntoClientDatasets(percUsers, trainDataframe, self.DiabetesDataset)
         testDataset = self.DiabetesDataset(testDataframe)
 
-        if self.requireDatasetAnonymization:
-            clientDatasets, syntacticMappings, generalizedColumns = self.__anonymizeClientDatasets(clientDatasets,
-                                                                                                   columns, k=4)
-            testDataset = self.__anonymizeTestDataset(testDataset, syntacticMappings, columns, generalizedColumns)
+        # if self.requireDatasetAnonymization:
+        #     clientDatasets, syntacticMappings, generalizedColumns = self.__anonymizeClientDatasets(clientDatasets,
+        #                                                                                            columns, k=4)
+        #     testDataset = self.__anonymizeTestDataset(testDataset, syntacticMappings, columns, generalizedColumns)
 
         return clientDatasets, testDataset
 
@@ -471,94 +472,94 @@ class DatasetLoaderDiabetes(DatasetLoader):
 
         return trainDataframe, testDataframe, data.columns
 
-    def __anonymizeClientDatasets(self, clientDatasets, columns, k):
-
-        # Those might be calculated here; or might index
-        # might be passed as param and not the columnName
-        quasiIds = ['Pregnancies', 'Age']
-
-        resultDataframes = []
-        clientSyntacticMappings = []
-
-        dataframes = [pd.DataFrame(list(ds.dataframe['data']), columns=columns) for ds in clientDatasets]
-        for dataframe in dataframes:
-            anonIndex = dataframe.groupby(quasiIds)[dataframe.columns[0]].transform('size') >= k
-
-            anonDataframe = dataframe[anonIndex]
-            needProtectDataframe = dataframe[~anonIndex]
-
-            # Might want to ss those for the report:
-            # print(anonDataframe)
-            # print(needProtectDataframe)
-
-            protect = Protect(needProtectDataframe, KAnonymity(k))
-            protect.quality_model = quality.Loss()
-            # protect.quality_model = quality.Classification()
-            protect.suppression = 0
-
-            for qid in quasiIds:
-                protect.itypes[qid] = 'quasi'
-
-            protect.hierarchies.Age = OrderHierarchy('interval', 1, 5, 2, 2, 2)
-            protect.hierarchies.Pregnancies = OrderHierarchy('interval', 1, 2, 2, 2, 2)
-
-            protectedDataframe = protect.protect()
-            mappings = protectedDataframe[quasiIds].drop_duplicates().to_dict('records')
-            clientSyntacticMappings.append(mappings)
-            protectedDataframe = pd.get_dummies(protectedDataframe)
-
-            resultDataframe = pd.concat([anonDataframe, protectedDataframe]).fillna(0).sort_index()
-            resultDataframes.append(resultDataframe)
-
-        # All clients datasets should have same columns
-        allColumns = set().union(*[df.columns.values for df in resultDataframes])
-        for resultDataframe in resultDataframes:
-            for col in allColumns - set(resultDataframe.columns.values):
-                resultDataframe[col] = 0
-
-        # Create new datasets by adding the labels to
-        anonClientDatasets = []
-        for resultDataframe, initialDataset in zip(resultDataframes, clientDatasets):
-            labels = initialDataset.dataframe['labels'].values
-            labeledDataframe = pd.DataFrame(zip(resultDataframe.values, labels))
-            labeledDataframe.columns = ['data', 'labels']
-            anonClientDatasets.append(self.DiabetesDataset(labeledDataframe))
-
-        return anonClientDatasets, clientSyntacticMappings, allColumns
-
-    def __anonymizeTestDataset(self, testDataset, clientSyntacticMappings, columns, generalizedColumns):
-        dataframe = pd.DataFrame(list(testDataset.dataframe['data']), columns=columns)
-
-        # One client's mappings should be mutual exclusive,
-        # thus we could stop when found first mapping (not much more efficient)
-
-        generalisedDataframe = pd.DataFrame(dataframe)
-        ungeneralisedIndex = []
-        for i in range(len(dataframe)):
-            legitMappings = []
-            for clientMappings in clientSyntacticMappings:
-                legitMappings += [mapping for mapping in clientMappings
-                                  if self.__legitMapping(dataframe.iloc[i], mapping)]
-            if legitMappings:
-                leastGeneralMapping = reduce(self.__leastGeneral, legitMappings)
-                for col in leastGeneralMapping:
-                    generalisedDataframe[col][i] = leastGeneralMapping[col]
-            else:
-                ungeneralisedIndex.append(i)
-                generalisedDataframe = generalisedDataframe.drop(i)
-
-        generalisedDataframe = pd.get_dummies(generalisedDataframe)
-        ungeneralisedDataframe = dataframe.iloc[ungeneralisedIndex]
-
-        resultDataframe = pd.concat([ungeneralisedDataframe, generalisedDataframe]).fillna(0).sort_index()
-        for col in generalizedColumns - set(resultDataframe.columns.values):
-            resultDataframe[col] = 0
-
-        labels = testDataset.dataframe['labels'].values
-        labeledDataframe = pd.DataFrame(zip(resultDataframe.values, labels))
-        labeledDataframe.columns = ['data', 'labels']
-
-        return self.DiabetesDataset(labeledDataframe)
+    # def __anonymizeClientDatasets(self, clientDatasets, columns, k):
+    #
+    #     # Those might be calculated here; or might index
+    #     # might be passed as param and not the columnName
+    #     quasiIds = ['Pregnancies', 'Age']
+    #
+    #     resultDataframes = []
+    #     clientSyntacticMappings = []
+    #
+    #     dataframes = [pd.DataFrame(list(ds.dataframe['data']), columns=columns) for ds in clientDatasets]
+    #     for dataframe in dataframes:
+    #         anonIndex = dataframe.groupby(quasiIds)[dataframe.columns[0]].transform('size') >= k
+    #
+    #         anonDataframe = dataframe[anonIndex]
+    #         needProtectDataframe = dataframe[~anonIndex]
+    #
+    #         # Might want to ss those for the report:
+    #         # print(anonDataframe)
+    #         # print(needProtectDataframe)
+    #
+    #         protect = Protect(needProtectDataframe, KAnonymity(k))
+    #         protect.quality_model = quality.Loss()
+    #         # protect.quality_model = quality.Classification()
+    #         protect.suppression = 0
+    #
+    #         for qid in quasiIds:
+    #             protect.itypes[qid] = 'quasi'
+    #
+    #         protect.hierarchies.Age = OrderHierarchy('interval', 1, 5, 2, 2, 2)
+    #         protect.hierarchies.Pregnancies = OrderHierarchy('interval', 1, 2, 2, 2, 2)
+    #
+    #         protectedDataframe = protect.protect()
+    #         mappings = protectedDataframe[quasiIds].drop_duplicates().to_dict('records')
+    #         clientSyntacticMappings.append(mappings)
+    #         protectedDataframe = pd.get_dummies(protectedDataframe)
+    #
+    #         resultDataframe = pd.concat([anonDataframe, protectedDataframe]).fillna(0).sort_index()
+    #         resultDataframes.append(resultDataframe)
+    #
+    #     # All clients datasets should have same columns
+    #     allColumns = set().union(*[df.columns.values for df in resultDataframes])
+    #     for resultDataframe in resultDataframes:
+    #         for col in allColumns - set(resultDataframe.columns.values):
+    #             resultDataframe[col] = 0
+    #
+    #     # Create new datasets by adding the labels to
+    #     anonClientDatasets = []
+    #     for resultDataframe, initialDataset in zip(resultDataframes, clientDatasets):
+    #         labels = initialDataset.dataframe['labels'].values
+    #         labeledDataframe = pd.DataFrame(zip(resultDataframe.values, labels))
+    #         labeledDataframe.columns = ['data', 'labels']
+    #         anonClientDatasets.append(self.DiabetesDataset(labeledDataframe))
+    #
+    #     return anonClientDatasets, clientSyntacticMappings, allColumns
+    #
+    # def __anonymizeTestDataset(self, testDataset, clientSyntacticMappings, columns, generalizedColumns):
+    #     dataframe = pd.DataFrame(list(testDataset.dataframe['data']), columns=columns)
+    #
+    #     # One client's mappings should be mutual exclusive,
+    #     # thus we could stop when found first mapping (not much more efficient)
+    #
+    #     generalisedDataframe = pd.DataFrame(dataframe)
+    #     ungeneralisedIndex = []
+    #     for i in range(len(dataframe)):
+    #         legitMappings = []
+    #         for clientMappings in clientSyntacticMappings:
+    #             legitMappings += [mapping for mapping in clientMappings
+    #                               if self.__legitMapping(dataframe.iloc[i], mapping)]
+    #         if legitMappings:
+    #             leastGeneralMapping = reduce(self.__leastGeneral, legitMappings)
+    #             for col in leastGeneralMapping:
+    #                 generalisedDataframe[col][i] = leastGeneralMapping[col]
+    #         else:
+    #             ungeneralisedIndex.append(i)
+    #             generalisedDataframe = generalisedDataframe.drop(i)
+    #
+    #     generalisedDataframe = pd.get_dummies(generalisedDataframe)
+    #     ungeneralisedDataframe = dataframe.iloc[ungeneralisedIndex]
+    #
+    #     resultDataframe = pd.concat([ungeneralisedDataframe, generalisedDataframe]).fillna(0).sort_index()
+    #     for col in generalizedColumns - set(resultDataframe.columns.values):
+    #         resultDataframe[col] = 0
+    #
+    #     labels = testDataset.dataframe['labels'].values
+    #     labeledDataframe = pd.DataFrame(zip(resultDataframe.values, labels))
+    #     labeledDataframe.columns = ['data', 'labels']
+    #
+    #     return self.DiabetesDataset(labeledDataframe)
 
     @staticmethod
     def __leastGeneral(map1, map2):
