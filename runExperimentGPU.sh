@@ -11,6 +11,10 @@ TERM=vt100
 
 /usr/bin/nvidia-smi
 
+add-apt-repository ppa:openjdk-r/ppa
+apt-get update -q
+apt install -y openjdk-11-jdk
+
 uptime
 
 #nohup python -u main.py > out/experimentDiabetes.log 2>&1
