@@ -864,7 +864,7 @@ def noDP_noByz_onDiabetes():
 
 
 @experiment
-def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes():
+def withAndWithoutDPandKAnonymization_withAndWithoutByz_10ByzClients_onDiabetes():
     epsilon1 = 0.0001
     epsilon3 = 0.0001
     releaseProportion = 0.1
@@ -872,7 +872,7 @@ def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes(
     learningRate = 0.00001
     batchSize = 10
     epochs = 5
-    rounds = 7
+    rounds = 10
 
     percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
 
@@ -1012,9 +1012,36 @@ def withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes(
 @experiment
 def customExperiment():
     config = DefaultExperimentConfiguration()
+    epsilon1 = 0.0001
+    epsilon3 = 0.0001
+    releaseProportion = 0.1
+
+    learningRate = 0.00001
+    batchSize = 10
+    epochs = 5
+    rounds = 7
+
+    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+
+    config.Optimizer = torch.optim.Adam
+    config.aggregators = agg.allAggregators()
+    config.learningRate = learningRate
+    config.batchSize = batchSize
+    config.epochs = epochs
+    config.rounds = rounds
+
+    config.privacyPreserve = True
+    config.releaseProportion = releaseProportion
+    config.epsilon1 = epsilon1
+    config.epsilon3 = epsilon3
+    config.needClip = True
+
+    config.percUsers = percUsers
+
     __experimentOnDiabetes(config)
 
 
 # customExperiment()
 # withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx()
-withAndWithoutDPandKAnonimization_withAndWithoutByz_10ByzClients_onDiabetes()
+# customExperiment()
+withAndWithoutDPandKAnonymization_withAndWithoutByz_10ByzClients_onDiabetes()

@@ -40,7 +40,7 @@ class DefaultExperimentConfiguration:
         # Anonymization of datasets for k-anonymity
         self.requireDatasetAnonymization = False
 
-        self.aggregators = agg.FAandAFA()  # Aggregation strategies
+        self.aggregators = agg.allAggregators()  # Aggregation strategies
 
         self.plotResults = False
 
