@@ -33,17 +33,18 @@ experimentArchive = [{
     "fileName": "diabetesExperiment",
     "rounds": 7,
     "name": "kAnonymity tested on Diabetes dataset.",
-    "loggedConfigName": True}, {
-    "fileName": "test",
-    "rounds": 10,
-    "name": "kAnonymity tested on Diabetes dataset.",
-    "loggedConfigName": True}
+    "loggedConfigName": True},
+    {
+        "fileName": "test",
+        "rounds": 10,
+        "name": "kAnonymity tested on Diabetes dataset.",
+        "loggedConfigName": True}
 ]
 default = DefaultExperimentConfiguration()
 
 
 # Intermediary representation between parsing and plotting
-class ExpResult(object):
+class ExpResult:
     def __init__(self, name, duration, errors, blocked):
         self.name = name
         self.errors = errors
@@ -106,14 +107,13 @@ def plotResults(filteredResults, experimentToPlot):
         DPconfigs = list(product({True}, needClip, clipValues, epsilon1, epsilon3,
                                  needNormalise, releaseProportion, aggregators))
 
-        noDPconfig = [(False, default.needClip, default.clipValue, default.epsilon1, default.epsilon3,
+        noDPconfig = [(False, default.needClip, 0.0001, default.epsilon1, default.epsilon3,
                        default.needNormalization, default.releaseProportion, agg) for agg in aggregators]
         configs = noDPconfig + DPconfigs
-
         # Plotting given experiment results
 
         # For incomplete log files:
-        configs = configs[:len(filteredResults)]  # Can be removed when there's an run result for each configuration
+        # configs = configs[:len(filteredResults)]  # Can be removed when there's an run result for each configuration
         experiments = dict(zip(configs, filteredResults))
 
         # Maybe one day
@@ -129,9 +129,8 @@ def plotResults(filteredResults, experimentToPlot):
                                    {1, 0.01, 0.0001},  # epsilon3
                                    {False, True},  # need normalisation
                                    {0.1, 0.4},  # release proportion
-                                   ["FA", "COMED", "MKRUM", "AFA"]))  # aggregator
+                                   ["FA"]))#, "COMED", "MKRUM", "AFA"]))  # aggregator
         plotBlocking = False
-
         for config in list(experiments):
             if config not in casesToPlot:
                 del experiments[config]
@@ -235,14 +234,13 @@ def plotResults(filteredResults, experimentToPlot):
 
 
 def __filtering(experiment):
-    return True
-    return 'AFA' in experiment.name
-    return '10' in experiment.name
-    return '1_' in experiment.name or ':5' in experiment.name
-    return 'AFA' in experiment.name and 'DP' not in experiment.name
-    return ''
-    # return '1_' in experiment.name
-    return '8_' in experiment.name
+    # return 'AFA' in experiment.name
+    # return '10' in experiment.name
+    # return '1_' in experiment.name or ':5' in experiment.name
+    # return 'AFA' in experiment.name and 'DP' not in experiment.name
+    # return ''
+    # # return '1_' in experiment.name
+    # return '8_' in experiment.name
     return True
 
 
@@ -251,6 +249,7 @@ def parseAndPlot(experimentToPlot):
     results = parseLogFile(experimentToPlot['fileName'])
     plotResults(results, experimentToPlot)
 
-parseAndPlot(experimentArchive[6])
+
+parseAndPlot(experimentArchive[0])
 # for experiment in experimentArchive:
 #     parseAndPlot(experiment)
