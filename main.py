@@ -1,6 +1,9 @@
+from torchsummary import summary
+
 from experiment.DefaultExperimentConfiguration import DefaultExperimentConfiguration
-from datasetLoaders.loaders import DatasetLoaderMNIST, DatasetLoaderCOVIDx, DatasetLoaderDiabetes
-from classifiers import MNIST, CovidNet, CNN, Diabetes
+from datasetLoaders.loaders import DatasetLoaderMNIST, DatasetLoaderCOVIDx, DatasetLoaderDiabetes, \
+    DatasetLoaderHeartDisease
+from classifiers import MNIST, CovidNet, CNN, Diabetes, HeartDisease
 from logger import logPrint
 from client import Client
 import aggregators as agg
@@ -33,6 +36,12 @@ def __experimentOnCONVIDx(config, model='COVIDNet'):
 def __experimentOnDiabetes(config):
     dataLoader = DatasetLoaderDiabetes(config.requireDatasetAnonymization).getDatasets
     classifier = Diabetes.Classifier
+    __experimentSetup(config, dataLoader, classifier)
+
+
+def __experimentOnHeartDisease(config):
+    dataLoader = DatasetLoaderHeartDisease(config.requireDatasetAnonymization).getDatasets
+    classifier = HeartDisease.Classifier
     __experimentSetup(config, dataLoader, classifier)
 
 
@@ -74,6 +83,8 @@ def __runExperiment(config, datasetLoader, classifier, aggregator, useDifferenti
     if config.requireDatasetAnonymization:
         classifier.inputSize = testDataset.getInputSize()
     model = classifier().to(config.device)
+    # summary(model, input_size=(8,))
+    # exit(0)
     aggregator = aggregator(clients, model, config.rounds, config.device)
     return aggregator.trainAndTest(testDataset)
 
@@ -876,6 +887,29 @@ def withAndWithoutDPandKAnonymization_withAndWithoutByz_10ByzClients_onDiabetes(
 
     percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
 
+    __groupedExperiments_SyntacticVsDP(batchSize, epochs, epsilon1, epsilon3, learningRate, percUsers,
+                                       releaseProportion, rounds, __experimentOnDiabetes)
+
+
+@experiment
+def withAndWithoutDPandKAnonymization_withAndWithoutByz_3ByzClients_onDiabetes():
+    epsilon1 = 0.0001
+    epsilon3 = 0.0001
+    releaseProportion = 0.1
+
+    learningRate = 0.00001
+    batchSize = 10
+    epochs = 5
+    rounds = 10
+
+    percUsers = torch.tensor([0.3, 0.3, 0.4])
+
+    __groupedExperiments_SyntacticVsDP(batchSize, epochs, epsilon1, epsilon3, learningRate, percUsers,
+                                       releaseProportion, rounds, __experimentOnDiabetes)
+
+
+def __groupedExperiments_SyntacticVsDP(batchSize, epochs, epsilon1, epsilon3, learningRate, percUsers,
+                                       releaseProportion, rounds, experimentMethod):
     # Vanilla
     noDPconfig = DefaultExperimentConfiguration()
     noDPconfig.aggregators = agg.allAggregators()
@@ -884,10 +918,8 @@ def withAndWithoutDPandKAnonymization_withAndWithoutByz_10ByzClients_onDiabetes(
     noDPconfig.batchSize = batchSize
     noDPconfig.epochs = epochs
     noDPconfig.rounds = rounds
-
     noDPconfig.percUsers = percUsers
-
-    __experimentOnDiabetes(noDPconfig)
+    experimentMethod(noDPconfig)
 
     # With DP
     DPconfig = DefaultExperimentConfiguration()
@@ -897,16 +929,13 @@ def withAndWithoutDPandKAnonymization_withAndWithoutByz_10ByzClients_onDiabetes(
     DPconfig.batchSize = batchSize
     DPconfig.epochs = epochs
     DPconfig.rounds = rounds
-
     DPconfig.privacyPreserve = True
     DPconfig.releaseProportion = releaseProportion
     DPconfig.epsilon1 = epsilon1
     DPconfig.epsilon3 = epsilon3
     DPconfig.needClip = True
-
     DPconfig.percUsers = percUsers
-
-    __experimentOnDiabetes(DPconfig)
+    experimentMethod(DPconfig)
 
     # With k-anonymity
     kAnonConfig = DefaultExperimentConfiguration()
@@ -916,13 +945,10 @@ def withAndWithoutDPandKAnonymization_withAndWithoutByz_10ByzClients_onDiabetes(
     kAnonConfig.batchSize = batchSize
     kAnonConfig.epochs = epochs
     kAnonConfig.rounds = rounds
-
     kAnonConfig.requireDatasetAnonymization = True
     kAnonConfig.name = "k:4;"
-
     kAnonConfig.percUsers = percUsers
-
-    __experimentOnDiabetes(kAnonConfig)
+    experimentMethod(kAnonConfig)
 
     # With DP with one attacker
     DPconfig = DefaultExperimentConfiguration()
@@ -940,12 +966,11 @@ def withAndWithoutDPandKAnonymization_withAndWithoutByz_10ByzClients_onDiabetes(
     DPconfig.needClip = True
 
     DPconfig.percUsers = percUsers
-    DPconfig.malicious = [3]
 
+    DPconfig.malicious = [3]
     DPconfig.name = "altered:1_malicious"
 
-    __experimentOnDiabetes(DPconfig)
-
+    experimentMethod(DPconfig)
     # With k-anonymity with one attacker
     kAnonByzConfig = DefaultExperimentConfiguration()
     kAnonByzConfig.Optimizer = torch.optim.Adam
@@ -958,13 +983,12 @@ def withAndWithoutDPandKAnonymization_withAndWithoutByz_10ByzClients_onDiabetes(
     kAnonByzConfig.requireDatasetAnonymization = True
 
     kAnonByzConfig.percUsers = percUsers
-    kAnonByzConfig.malicious = [3]
 
+    kAnonByzConfig.malicious = [3]
     kAnonByzConfig.name = "k:4;"
     kAnonByzConfig.name += "altered:1_malicious"
 
-    __experimentOnDiabetes(kAnonByzConfig)
-
+    experimentMethod(kAnonByzConfig)
     # With DP with more attackers
     DPbyzConfig = DefaultExperimentConfiguration()
     DPbyzConfig.Optimizer = torch.optim.Adam
@@ -981,12 +1005,12 @@ def withAndWithoutDPandKAnonymization_withAndWithoutByz_10ByzClients_onDiabetes(
     DPbyzConfig.needClip = True
 
     noDPconfig.percUsers = percUsers
+
     DPbyzConfig.malicious = [2, 4]
     DPbyzConfig.faulty = [1]
-
     DPbyzConfig.name = "altered:1_faulty,2_malicious"
 
-    __experimentOnDiabetes(DPbyzConfig)
+    experimentMethod(DPbyzConfig)
 
     # With k-anonymity with more attackers
     kAnonByzConfig = DefaultExperimentConfiguration()
@@ -1000,48 +1024,53 @@ def withAndWithoutDPandKAnonymization_withAndWithoutByz_10ByzClients_onDiabetes(
     kAnonByzConfig.requireDatasetAnonymization = True
 
     kAnonByzConfig.percUsers = percUsers
+
     kAnonByzConfig.malicious = [2, 4]
     kAnonByzConfig.faulty = [3]
-
     kAnonByzConfig.name = "k:4;"
     kAnonByzConfig.name += "altered:1_malicious"
 
-    __experimentOnDiabetes(kAnonByzConfig)
+    experimentMethod(kAnonByzConfig)
 
 
 @experiment
-def customExperiment():
+def noByz_HeartDisease():
     config = DefaultExperimentConfiguration()
+    config.percUsers = torch.tensor([.3, .3, .4])
+
+    config.requireDatasetAnonymization = True
+
+    config.Optimizer = torch.optim.Adam
+    config.learningRate = 0.0001
+    config.batchSize = 20
+    config.rounds = 100
+    config.epochs = 10
+
+    __experimentOnHeartDisease(config)
+
+@experiment
+def withAndWithoutDPandKAnonymization_withAndWithoutByz_3ByzClients_onHeartDisease():
+    percUsers = torch.tensor([.3, .3, .4])
+
     epsilon1 = 0.0001
     epsilon3 = 0.0001
     releaseProportion = 0.1
 
-    learningRate = 0.00001
-    batchSize = 10
-    epochs = 5
-    rounds = 7
+    learningRate = 0.0001
+    batchSize = 20
+    epochs = 10
+    rounds = 100
 
-    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+    __groupedExperiments_SyntacticVsDP(batchSize, epochs, epsilon1, epsilon3, learningRate, percUsers,
+                                       releaseProportion, rounds, __experimentOnHeartDisease)
 
-    config.Optimizer = torch.optim.Adam
-    config.aggregators = agg.allAggregators()
-    config.learningRate = learningRate
-    config.batchSize = batchSize
-    config.epochs = epochs
-    config.rounds = rounds
-
-    config.privacyPreserve = True
-    config.releaseProportion = releaseProportion
-    config.epsilon1 = epsilon1
-    config.epsilon3 = epsilon3
-    config.needClip = True
-
-    config.percUsers = percUsers
-
-    __experimentOnDiabetes(config)
+@experiment
+def customExperiment():
+    config = DefaultExperimentConfiguration()
+    __experimentOnHeartDisease(config)
 
 
+withAndWithoutDPandKAnonymization_withAndWithoutByz_3ByzClients_onDiabetes()
+# withAndWithoutDPandKAnonymization_withAndWithoutByz_3ByzClients_onHeartDisease()
 # customExperiment()
-# withAndWithoutDP_withAndWithoutByz_5ByzClients_resnet_onCOVIDx()
-# customExperiment()
-withAndWithoutDPandKAnonymization_withAndWithoutByz_10ByzClients_onDiabetes()
+# noByz_HeartDisease()

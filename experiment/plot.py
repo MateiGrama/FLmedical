@@ -36,7 +36,7 @@ experimentArchive = [{
     "loggedConfigName": True},
     {
         "fileName": "test",
-        "rounds": 10,
+        "rounds": 100,
         "name": "kAnonymity tested on Diabetes dataset.",
         "loggedConfigName": True}
 ]
@@ -129,8 +129,8 @@ def plotResults(filteredResults, experimentToPlot):
                                    {1, 0.01, 0.0001},  # epsilon3
                                    {False, True},  # need normalisation
                                    {0.1, 0.4},  # release proportion
-                                   ["FA"]))#, "COMED", "MKRUM", "AFA"]))  # aggregator
-        plotBlocking = False
+                                   ["FA", "COMED", "MKRUM", "AFA"]))  # aggregator
+        plotBlocking = True
         for config in list(experiments):
             if config not in casesToPlot:
                 del experiments[config]
@@ -184,8 +184,8 @@ def plotResults(filteredResults, experimentToPlot):
                                       color='rgba(20,20,20,0.5)'),
                             showarrow=False)]
         # Title
-
         fig.update_layout(annotations=annotations)
+        fig.update_layout(font=dict(size=18),)
         fig.show()
 
     else:
@@ -250,6 +250,7 @@ def parseAndPlot(experimentToPlot):
     plotResults(results, experimentToPlot)
 
 
-parseAndPlot(experimentArchive[0])
+parseAndPlot(experimentArchive[2])
 # for experiment in experimentArchive:
 #     parseAndPlot(experiment)
+
