@@ -596,33 +596,26 @@ def withAndWithoutDP_manyXisAFA_30ByzAndNotClients_onMNIST():
         # ([2 * i + 1 for i in range(8)], [2 * i + 2 for i in range(8)], '8_faulty,8_malicious')
     ]
 
-    # Workaround to run experiments in parallel runs:
-    e = 4  # experiment index
-    nAttacks = 2  # number of attack scenarios considered per experiement
-    attacks = attacks[e * nAttacks: e * nAttacks + nAttacks]
-
     xis = [(1, 0.25), (1, 0.5), (1, 0.75), (2, 0.25), (2, 0.5), (2, 0.75), (3, 0.25), (3, 0.5), (3, 0.75)]
 
     percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
 
-    # Only run the vanilla experiment once
-    if not e:
-        # Without DP without attacks
-        for xiTuple in xis:
-            xi, deltaXi = xiTuple
+    # Without DP without attacks
+    for xiTuple in xis:
+        xi, deltaXi = xiTuple
 
-            noDPconfig = DefaultExperimentConfiguration()
-            noDPconfig.aggregators = [agg.AFAAggregator]
-            noDPconfig.percUsers = percUsers
+        noDPconfig = DefaultExperimentConfiguration()
+        noDPconfig.aggregators = [agg.AFAAggregator]
+        noDPconfig.percUsers = percUsers
 
-            noDPconfig.xi = xi
-            noDPconfig.deltaXi = deltaXi
+        noDPconfig.xi = xi
+        noDPconfig.deltaXi = deltaXi
 
-            noDPconfig.name = "xis:{};".format(xiTuple)
+        noDPconfig.name = "xis:{};".format(xiTuple)
 
-            __experimentOnMNIST(noDPconfig)
+        __experimentOnMNIST(noDPconfig)
 
     # Without DP
     for xiTuple, attack in product(xis, attacks):
