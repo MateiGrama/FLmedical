@@ -116,7 +116,7 @@ class Client:
     def __manipulateModel(self, alpha=20):
         params = self.model.named_parameters()
         for name, param in params:
-            noise = alpha * torch.randn(param.data.size()).to(self.device)
+            noise = alpha * torch.randn(param.data.size())
             param.data.copy_(param.data + noise)
 
     # Procedure for implementing differential privacy
