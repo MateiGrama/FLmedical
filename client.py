@@ -78,7 +78,7 @@ class Client:
     def trainModel(self):
         self.model = self.model.to(self.device)
         for i in range(self.epochs):
-            logPrint("Client:{}; Epoch{}".format(self.id, i + 1))
+            # logPrint("Client:{}; Epoch{}".format(self.id, i + 1))
             for iBatch, (x, y) in enumerate(self.dataLoader):
                 x = x.to(self.device)
                 y = y.to(self.device)
