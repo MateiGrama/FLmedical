@@ -602,38 +602,38 @@ def withAndWithoutDP_manyXisAFA_30ByzAndNotClients_onMNIST():
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
 
-    # Without DP without attacks
-    for xiTuple in xis:
-        xi, deltaXi = xiTuple
-
-        noDPconfig = DefaultExperimentConfiguration()
-        noDPconfig.aggregators = [agg.AFAAggregator]
-        noDPconfig.percUsers = percUsers
-
-        noDPconfig.xi = xi
-        noDPconfig.deltaXi = deltaXi
-
-        noDPconfig.name = "xis:{};".format(xiTuple)
-
-        __experimentOnMNIST(noDPconfig)
-
-    # Without DP
-    for xiTuple, attack in product(xis, attacks):
-        faulty, malicious, attackName = attack
-        xi, deltaXi = xiTuple
-        noDPconfig = DefaultExperimentConfiguration()
-        noDPconfig.aggregators = [agg.AFAAggregator]
-        noDPconfig.percUsers = percUsers
-
-        noDPconfig.xi = xi
-        noDPconfig.deltaXi = deltaXi
-
-        noDPconfig.faulty = faulty
-        noDPconfig.malicious = malicious
-        noDPconfig.name = "xis:{};".format(xiTuple)
-        noDPconfig.name += "altered:{};".format(attackName)
-
-        __experimentOnMNIST(noDPconfig)
+    # # Without DP without attacks
+    # for xiTuple in xis:
+    #     xi, deltaXi = xiTuple
+    #
+    #     noDPconfig = DefaultExperimentConfiguration()
+    #     noDPconfig.aggregators = [agg.AFAAggregator]
+    #     noDPconfig.percUsers = percUsers
+    #
+    #     noDPconfig.xi = xi
+    #     noDPconfig.deltaXi = deltaXi
+    #
+    #     noDPconfig.name = "xis:{};".format(xiTuple)
+    #
+    #     __experimentOnMNIST(noDPconfig)
+    #
+    # # Without DP
+    # for xiTuple, attack in product(xis, attacks):
+    #     faulty, malicious, attackName = attack
+    #     xi, deltaXi = xiTuple
+    #     noDPconfig = DefaultExperimentConfiguration()
+    #     noDPconfig.aggregators = [agg.AFAAggregator]
+    #     noDPconfig.percUsers = percUsers
+    #
+    #     noDPconfig.xi = xi
+    #     noDPconfig.deltaXi = deltaXi
+    #
+    #     noDPconfig.faulty = faulty
+    #     noDPconfig.malicious = malicious
+    #     noDPconfig.name = "xis:{};".format(xiTuple)
+    #     noDPconfig.name += "altered:{};".format(attackName)
+    #
+    #     __experimentOnMNIST(noDPconfig)
 
     # With DP
     for budget, xiTuple, attack in product(privacyBudget, xis, attacks):
@@ -651,13 +651,13 @@ def withAndWithoutDP_manyXisAFA_30ByzAndNotClients_onMNIST():
         expConfig.epsilon3 = epsilon3
         expConfig.needClip = True
 
-        noDPconfig.xi = xi
-        noDPconfig.deltaXi = deltaXi
+        expConfig.xi = xi
+        expConfig.deltaXi = deltaXi
 
         expConfig.faulty = faulty
         expConfig.malicious = malicious
 
-        noDPconfig.name = "xis:{};".format(xiTuple)
+        expConfig.name = "xis:{};".format(xiTuple)
         expConfig.name += "altered:{};".format(attackName)
         expConfig.name += "privacyBudget:{};".format(budgetName)
 
