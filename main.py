@@ -84,6 +84,9 @@ def __runExperiment(config, datasetLoader, classifier, aggregator, useDifferenti
         classifier.inputSize = testDataset.getInputSize()
     model = classifier().to(config.device)
     aggregator = aggregator(clients, model, config.rounds, config.device)
+    if isinstance(aggregator, agg.AFAAggregator) and config.xi:
+        aggregator.xi = config.xi
+        aggregator.deltaXi = config.deltaXi
     return aggregator.trainAndTest(testDataset)
 
 
@@ -468,10 +471,10 @@ def withAndWithoutDP_manyAlphaBetaAFA_30ByzAndNotClients_onMNIST():
         ([2 * i + 1 for i in range(4)], [2 * i + 2 for i in range(4)], '4_faulty,4_malicious'),
     ]
 
-    # Workaround to run experiments in parallel runs:
-    e = 4  # experiment index
-    nAttacks = 2  # number of attack scenarios considered per experiement
-    attacks = attacks[e * nAttacks: e * nAttacks + nAttacks]
+    # # Workaround to run experiments in parallel runs:
+    # e = 4  # experiment index
+    # nAttacks = 2  # number of attack scenarios considered per experiement
+    # attacks = attacks[e * nAttacks: e * nAttacks + nAttacks]
 
     alphaBetas = [(2, 2), (2, 3), (3, 2), (3, 3), (3, 4), (4, 3), (4, 4)]
 
@@ -479,22 +482,20 @@ def withAndWithoutDP_manyAlphaBetaAFA_30ByzAndNotClients_onMNIST():
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
 
-    # Only run the vanilla experiment once
-    if not e:
-        # Without DP without attacks
-        for alphaBeta in alphaBetas:
-            alpha, beta = alphaBeta
+    # Without DP without attacks
+    for alphaBeta in alphaBetas:
+        alpha, beta = alphaBeta
 
-            noDPconfig = DefaultExperimentConfiguration()
-            noDPconfig.aggregators = [agg.AFAAggregator]
-            noDPconfig.percUsers = percUsers
+        noDPconfig = DefaultExperimentConfiguration()
+        noDPconfig.aggregators = [agg.AFAAggregator]
+        noDPconfig.percUsers = percUsers
 
-            noDPconfig.alpha = alpha
-            noDPconfig.beta = beta
+        noDPconfig.alpha = alpha
+        noDPconfig.beta = beta
 
-            noDPconfig.name = "alphaBeta:{};".format(alphaBeta)
+        noDPconfig.name = "alphaBeta:{};".format(alphaBeta)
 
-            __experimentOnMNIST(noDPconfig)
+        __experimentOnMNIST(noDPconfig)
 
     # Without DP
     for alphaBeta, attack in product(alphaBetas, attacks):
@@ -503,6 +504,9 @@ def withAndWithoutDP_manyAlphaBetaAFA_30ByzAndNotClients_onMNIST():
         noDPconfig = DefaultExperimentConfiguration()
         noDPconfig.aggregators = [agg.AFAAggregator]
         noDPconfig.percUsers = percUsers
+
+        noDPconfig.alpha = alpha
+        noDPconfig.beta = beta
 
         noDPconfig.faulty = faulty
         noDPconfig.malicious = malicious
@@ -534,6 +538,117 @@ def withAndWithoutDP_manyAlphaBetaAFA_30ByzAndNotClients_onMNIST():
         expConfig.malicious = malicious
 
         expConfig.name = "alphaBeta:{};".format(alphaBeta)
+        expConfig.name += "altered:{};".format(attackName)
+        expConfig.name += "privacyBudget:{};".format(budgetName)
+
+        __experimentOnMNIST(expConfig)
+
+
+@experiment
+def withAndWithoutDP_manyXisAFA_30ByzAndNotClients_onMNIST():
+    # Privacy budget = (releaseProportion, epsilon1, epsilon3)
+    privacyBudget = [(0.1, 0.0001, 0.0001, 'low')]
+    # Attacks: Malicious/Flipping - flips labels to 0; Faulty/Byzantine - noisy
+    attacks = [
+        ([2 * i + 1 for i in range(2)], [], '2_faulty'),
+        # ([2 * i + 1 for i in range(4)], [], '4_faulty'),
+        ([2 * i + 1 for i in range(6)], [], '6_faulty'),
+        # ([2 * i + 1 for i in range(7)], [], '7_faulty'),
+        ([2 * i + 1 for i in range(8)], [], '8_faulty'),
+        # ([2 * i + 1 for i in range(9)], [], '9_faulty'),
+        ([2 * i + 1 for i in range(10)], [], '10_faulty'),
+        # ([2 * i + 1 for i in range(12)], [], '12_faulty'),
+        # ([2 * i + 1 for i in range(14)], [], '14_faulty'),
+        # ([2 * i + 1 for i in range(15)], [], '15_faulty'),
+        ([], [2 * i + 2 for i in range(2)], '2_malicious'),
+        # ([], [2 * i + 2 for i in range(4)], '4_malicious'),
+        ([], [2 * i + 2 for i in range(6)], '6_malicious'),
+        # ([], [2 * i + 2 for i in range(7)], '7_malicious'),
+        ([], [2 * i + 2 for i in range(8)], '8_malicious'),
+        # ([], [2 * i + 2 for i in range(9)], '9_malicious'),
+        ([], [2 * i + 2 for i in range(10)], '10_malicious'),
+        # ([], [2 * i + 2 for i in range(12)], '12_malicious'),
+        # ([], [2 * i + 2 for i in range(14)], '14_malicious'),
+        # ([], [2 * i + 2 for i in range(15)], '15_malicious'),
+        ([2 * i + 1 for i in range(1)], [2 * i + 2 for i in range(1)], '1_faulty,1_malicious'),
+        # ([2 * i + 1 for i in range(2)], [2 * i + 2 for i in range(2)], '2_faulty,2_malicious'),
+        # ([2 * i + 1 for i in range(3)], [2 * i + 2 for i in range(3)], '3_faulty,3_malicious'),
+        ([2 * i + 1 for i in range(4)], [2 * i + 2 for i in range(4)], '4_faulty,4_malicious'),
+        # ([2 * i + 1 for i in range(5)], [2 * i + 2 for i in range(5)], '5_faulty,5_malicious'),
+        # ([2 * i + 1 for i in range(6)], [2 * i + 2 for i in range(6)], '6_faulty,6_malicious'),
+        # ([2 * i + 1 for i in range(7)], [2 * i + 2 for i in range(7)], '7_faulty,7_malicious'),
+        # ([2 * i + 1 for i in range(8)], [2 * i + 2 for i in range(8)], '8_faulty,8_malicious')
+    ]
+
+    # Workaround to run experiments in parallel runs:
+    e = 4  # experiment index
+    nAttacks = 2  # number of attack scenarios considered per experiement
+    attacks = attacks[e * nAttacks: e * nAttacks + nAttacks]
+
+    xis = [(1, 0.25), (1, 0.5), (1, 0.75), (2, 0.25), (2, 0.5), (2, 0.75), (3, 0.25), (3, 0.5), (3, 0.75)]
+
+    percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
+                              0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
+
+    # Only run the vanilla experiment once
+    if not e:
+        # Without DP without attacks
+        for xiTuple in xis:
+            xi, deltaXi = xiTuple
+
+            noDPconfig = DefaultExperimentConfiguration()
+            noDPconfig.aggregators = [agg.AFAAggregator]
+            noDPconfig.percUsers = percUsers
+
+            noDPconfig.xi = xi
+            noDPconfig.deltaXi = deltaXi
+
+            noDPconfig.name = "xis:{};".format(xiTuple)
+
+            __experimentOnMNIST(noDPconfig)
+
+    # Without DP
+    for xiTuple, attack in product(xis, attacks):
+        faulty, malicious, attackName = attack
+        xi, deltaXi = xiTuple
+        noDPconfig = DefaultExperimentConfiguration()
+        noDPconfig.aggregators = [agg.AFAAggregator]
+        noDPconfig.percUsers = percUsers
+
+        noDPconfig.xi = xi
+        noDPconfig.deltaXi = deltaXi
+
+        noDPconfig.faulty = faulty
+        noDPconfig.malicious = malicious
+        noDPconfig.name = "xis:{};".format(xiTuple)
+        noDPconfig.name += "altered:{};".format(attackName)
+
+        __experimentOnMNIST(noDPconfig)
+
+    # With DP
+    for budget, xiTuple, attack in product(privacyBudget, xis, attacks):
+        releaseProportion, epsilon1, epsilon3, budgetName = budget
+        faulty, malicious, attackName = attack
+        xi, deltaXi = xiTuple
+
+        expConfig = DefaultExperimentConfiguration()
+        expConfig.percUsers = percUsers
+        expConfig.aggregators = [agg.AFAAggregator]
+
+        expConfig.privacyPreserve = True
+        expConfig.releaseProportion = releaseProportion
+        expConfig.epsilon1 = epsilon1
+        expConfig.epsilon3 = epsilon3
+        expConfig.needClip = True
+
+        noDPconfig.xi = xi
+        noDPconfig.deltaXi = deltaXi
+
+        expConfig.faulty = faulty
+        expConfig.malicious = malicious
+
+        noDPconfig.name = "xis:{};".format(xiTuple)
         expConfig.name += "altered:{};".format(attackName)
         expConfig.name += "privacyBudget:{};".format(budgetName)
 

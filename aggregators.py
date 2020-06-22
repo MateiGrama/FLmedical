@@ -204,6 +204,11 @@ class MKRUMAggregator(Aggregator):
 # ADAPTIVE FEDERATED AVERAGING
 class AFAAggregator(Aggregator):
 
+    def __init__(self, clients, model, rounds, device, useAsyncClients=False):
+        super().__init__(clients, model, rounds, device, useAsyncClients)
+        self.xi = 2
+        self.deltaXi = 0.5
+
     def trainAndTest(self, testDataset):
         # List of malicious users blocked
         maliciousBlocked = []
@@ -229,7 +234,7 @@ class AFAAggregator(Aggregator):
             models = self._retrieveClientModelsDict()
 
             badCount = 2
-            slack = 2
+            slack = self.xi
             while badCount != 0:
                 pT_epoch = 0.0
                 for client in self.clients:
@@ -266,7 +271,7 @@ class AFAAggregator(Aggregator):
                 else:
                     th = medianS + slack * desvS
 
-                slack += 0.5
+                slack += self.deltaXi
 
                 badCount = 0
                 for client in self.clients:
