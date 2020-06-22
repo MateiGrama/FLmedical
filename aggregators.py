@@ -143,7 +143,6 @@ class COMEDAggregator(Aggregator):
         return modelCopy.to(self.device)
 
 
-# ROBUST AGGREGATION ALGORITHM - computes the median of the clients updates
 class MKRUMAggregator(Aggregator):
 
     def trainAndTest(self, testDataset):
@@ -198,10 +197,6 @@ class MKRUMAggregator(Aggregator):
             if name1 in dictParamsDest:
                 d1 = torch.cat((d1, dictParamsDest[name1].data.view(-1)))
                 d2 = torch.cat((d2, param1.data.view(-1)))
-                # d2 = param1.data
-                # sim = cos(d1.view(-1),d2.view(-1))
-                # logPrint(name1,param1.size())
-                # logPrint("Similarity: ",sim)
         sim = torch.norm(d1 - d2, p=2)
         return sim
 
@@ -286,8 +281,6 @@ class AFAAggregator(Aggregator):
                                 # Malicious self.clients are above the threshold
                         else:
                             if client.sim > th:
-                                # logPrint("Type 2")
-                                # logPrint("Bad update from user ", u.id)
                                 client.badUpdate = True
                                 badCount += 1
 

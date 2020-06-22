@@ -11,16 +11,14 @@ TERM=vt100
 
 /usr/bin/nvidia-smi
 
+add-apt-repository ppa:openjdk-r/ppa
+apt-get update -q
+apt install -y openjdk-11-jdk
+
 uptime
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-nohup python -u main.py > out/experiment.log 2>&1
-=======
-nohup python -u main.py > out/experimentCOVIDx_batchsize2.log 2>&1
->>>>>>> vmExperiment
-=======
-nohup python -u main.py > out/experimentCOVIDx_resnet_5clients_cpu.log 2>&1
->>>>>>> vmExperiment
+nohup python -u main.py > out/experimentDiabetes.log 2>&1
+#nohup python -u main.py > out/experimentCOVIDx_resnet_5clients_2batch_10rounds_cpu_2ndAttempt.log 2>&1
+
 #echo $! > out/lastExperimentPID.txt
 

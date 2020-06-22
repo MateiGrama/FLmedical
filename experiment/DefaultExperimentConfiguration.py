@@ -24,6 +24,10 @@ class DefaultExperimentConfiguration:
         self.faulty = []  # List of noisy clients
         self.malicious = []  # List of (malicious) clients with flipped labels
 
+        # AFA Parameters:
+        self.alpha = 3
+        self.beta = 3
+
         # Client privacy preserving module setup
         self.privacyPreserve = False  # if None, run with AND without DP
         self.releaseProportion = 0.1
@@ -36,7 +40,7 @@ class DefaultExperimentConfiguration:
         # Anonymization of datasets for k-anonymity
         self.requireDatasetAnonymization = False
 
-        self.aggregators = agg.FAandAFA()  # Aggregation strategies
+        self.aggregators = agg.allAggregators()  # Aggregation strategies
 
         self.plotResults = False
 

@@ -156,18 +156,6 @@ class Client:
         # tau = 0.0001
         noisyThreshold = laplace.rvs(scale=(s / e2)) + tau
 
-        # logPrint("NoisyThreshold: {}\t"
-        #          "e1: {}\t"
-        #          "e2: {}\t"
-        #          "e3: {}\t"
-        #          "shareParams: {}\t"
-        #          "".format(round(noisyThreshold, 3),
-        #                    round(e1, 3),
-        #                    round(e2, 3),
-        #                    round(e3, 3),
-        #                    round(shareParamsNo, 3),
-        #                    ))
-
         queryNoise = laplace.rvs(scale=(2 * shareParamsNo * s / e1), size=paramNo)
         queryNoise = torch.tensor(queryNoise).to(self.device)
 
@@ -208,7 +196,5 @@ class Client:
 
         paramArr = untrainedParamArr
         paramArr[releaseIndex][:shareParamsNo] += noisyFilteredChanges[:shareParamsNo]
-        # logPrint("Privacy preserving for client{} done.".format(self.id))
 
-# In the future:
-# different number of epochs for different clients
+
