@@ -133,8 +133,10 @@ class DatasetLoader:
         datasetClass = testDataset.__class__
         dataframe = pd.DataFrame(list(testDataset.dataframe['data']), columns=columns)
 
-        # One client's mappings should be mutual exclusive,
-        # thus we could stop when found first mapping (not much more efficient)
+        domainsSize = dict()
+        quasiIds = clientSyntacticMappings[0][0].keys()
+        for quasiId in quasiIds:
+            domainsSize[quasiId] = dataframe[quasiId].max() - dataframe[quasiId].min()
 
         generalisedDataframe = pd.DataFrame(dataframe)
         ungeneralisedIndex = []
@@ -144,7 +146,11 @@ class DatasetLoader:
                 legitMappings += [mapping for mapping in clientMappings
                                   if self.__legitMapping(dataframe.iloc[i], mapping)]
             if legitMappings:
-                leastGeneralMapping = reduce(self.__leastGeneral, legitMappings)
+                # leastGeneralMapping = reduce(self.__leastGeneral, legitMappings)
+                leastGeneralMapping = legitMappings[0]
+                for legitMapping in legitMappings[1:]:
+                    leastGeneralMapping = self.__leastGeneral(leastGeneralMapping, legitMapping, domainsSize)
+
                 for col in leastGeneralMapping:
                     generalisedDataframe[col][i] = leastGeneralMapping[col]
             else:
@@ -165,20 +171,17 @@ class DatasetLoader:
         return datasetClass(labeledDataframe)
 
     @staticmethod
-    def __leastGeneral(map1, map2):
-        # TODO: this way of computing the more general mapping relies on the fact
-        # TODO: that the generalised parameters have similar domain sizes.
-        # TODO: the parameters (within the maps or not) should contain the domains
+    def __leastGeneral(map1, map2, domainSize):
         map1Generality = map2Generality = 0
         for col in map1:
             if isinstance(map1[col], str):
                 interval = np.array(re.findall(r'\d+.\d+', map1[col]), dtype=np.float)
-                map1Generality += interval[1] - interval[0]  # should be weighted sum
+                map1Generality += (interval[1] - interval[0]) / domainSize[col]
 
         for col in map2:
             if isinstance(map1[col], str):
                 interval = np.array(re.findall(r'\d+.\d+', map2[col]), dtype=np.float)
-                map2Generality += interval[1] - interval[0]  # should be weighted sum
+                map2Generality += (interval[1] - interval[0]) / domainSize[col]
 
         return map1 if map1Generality <= map2Generality else map2
 
@@ -279,6 +282,7 @@ class DatasetLoaderCOVIDx(DatasetLoader):
 
         trainDataframe = self.__readDataframe(self.trainCSV, trainSize)
         testDataframe = self.__readDataframe(self.testCSV, testSize)
+
         return trainDataframe, testDataframe
 
     def __datasetNotFound(self):
