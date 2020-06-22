@@ -31,15 +31,25 @@ experimentArchive = [{
     "loggedConfigName": True
 }, {
     "fileName": "diabetesExperiment",
-    "rounds": 7,
+    "rounds": 10,
     "name": "kAnonymity tested on Diabetes dataset.",
-    "loggedConfigName": True},
-    {
-        "fileName": "test",
-        "rounds": 100,
-        "name": "kAnonymity tested on Diabetes dataset.",
-        "loggedConfigName": True}
-]
+    "loggedConfigName": True
+}, {
+    "fileName": "heartDiseaseExperiment",
+    "rounds": 100,
+    "name": "kAnonymity tested on Heart Disease dataset.",
+    "loggedConfigName": True
+}, {
+    "fileName": "afaXisExperiment",
+    "rounds": 35,
+    "name": "AFA tested against different slack values.",
+    "loggedConfigName": True
+}, {
+    "fileName": "diabetes50RoundsExperiment",
+    "rounds": 50,
+    "name": "kAnonymity tested on Diabetes dataset(50 rounds).",
+    "loggedConfigName": True
+}]
 default = DefaultExperimentConfiguration()
 
 
@@ -194,6 +204,9 @@ def plotResults(filteredResults, experimentToPlot):
 
         filteredResults = list(filter(__filtering, filteredResults))
         # Add traces, one for each slider step
+        for exp in filteredResults[len(filteredResults) - 4:]:
+            exp.name = exp.name.replace('altered:1_malicious', 'altered:1_faulty,2_malicious')
+
         for exp in filteredResults:
             print(exp)
             configName = exp.name
@@ -240,7 +253,8 @@ def __filtering(experiment):
     # return 'AFA' in experiment.name and 'DP' not in experiment.name
     # return ''
     # # return '1_' in experiment.name
-    # return '8_' in experiment.name
+    # return '10_faulty' in experiment.name
+    # return '8_faulty' in experiment.name
     return True
 
 
@@ -250,7 +264,7 @@ def parseAndPlot(experimentToPlot):
     plotResults(results, experimentToPlot)
 
 
-parseAndPlot(experimentArchive[2])
+parseAndPlot(experimentArchive[1])
 # for experiment in experimentArchive:
 #     parseAndPlot(experiment)
 

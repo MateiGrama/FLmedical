@@ -34,9 +34,9 @@ def __experimentOnCONVIDx(config, model='COVIDNet'):
 
 
 def __experimentOnDiabetes(config):
-    dataLoader = DatasetLoaderDiabetes(config.requireDatasetAnonymization).getDatasets
+    datasetLoader = DatasetLoaderDiabetes(config.requireDatasetAnonymization).getDatasets
     classifier = Diabetes.Classifier
-    __experimentSetup(config, dataLoader, classifier)
+    __experimentSetup(config, datasetLoader, classifier)
 
 
 def __experimentOnHeartDisease(config):
@@ -79,12 +79,10 @@ def __experimentSetup(config, datasetLoader, classifier):
 def __runExperiment(config, datasetLoader, classifier, aggregator, useDifferentialPrivacy):
     trainDatasets, testDataset = datasetLoader(config.percUsers, config.labels, config.datasetSize)
     clients = __initClients(config, trainDatasets, useDifferentialPrivacy)
-    # Requires model input update due to dataset generalisation and categorisation
+    # Requires model input size update due to dataset generalisation and categorisation
     if config.requireDatasetAnonymization:
         classifier.inputSize = testDataset.getInputSize()
     model = classifier().to(config.device)
-    # summary(model, input_size=(8,))
-    # exit(0)
     aggregator = aggregator(clients, model, config.rounds, config.device)
     if isinstance(aggregator, agg.AFAAggregator) and config.xi:
         aggregator.xi = config.xi
@@ -121,7 +119,6 @@ def __initClients(config, trainDatasets, useDifferentialPrivacy):
     # Weight the value of the update of each user according to the number of training data points
     for client in clients:
         client.p = client.n / nTrain
-        # logPrint("Weight for user ", u.id, ": ", round(u.p,3))
 
     # Create malicious (byzantine) and faulty users
     for client in clients:
@@ -131,9 +128,6 @@ def __initClients(config, trainDatasets, useDifferentialPrivacy):
         if client.id in config.malicious:
             client.flip = True
             logPrint("User", client.id, "is malicious.")
-            # Flip labels
-            # r = torch.randperm(u.ytr.size(0))
-            # u.yTrain = u.yTrain[r]
             client.trainDataset.zeroLabels()
     return clients
 
@@ -145,7 +139,7 @@ def __setRandomSeeds(seed=0):
     torch.cuda.manual_seed(seed)
 
 
-# EXPERIMENTS #
+#   EXPERIMENTS
 def experiment(exp):
     def decorator():
         __setRandomSeeds(2)
@@ -412,9 +406,6 @@ def withAndWithoutDP_AFA_30ByzAndNotClients_onMNIST():
                ([2 * i + 1 for i in range(7)], [2 * i + 2 for i in range(7)], '7_faulty,7_malicious'),
                ([2 * i + 1 for i in range(8)], [2 * i + 2 for i in range(8)], '8_faulty,8_malicious')]
 
-    attacks = [([2 * i + 1 for i in range(7)], [], '7_faulty'),
-               ([], [2 * i + 2 for i in range(7)], '7_malicious')]
-
     percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2,
                               0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
@@ -469,33 +460,15 @@ def withAndWithoutDP_manyAlphaBetaAFA_30ByzAndNotClients_onMNIST():
     # Attacks: Malicious/Flipping - flips labels to 0; Faulty/Byzantine - noisy
     attacks = [
         ([2 * i + 1 for i in range(2)], [], '2_faulty'),
-        # ([2 * i + 1 for i in range(4)], [], '4_faulty'),
         ([2 * i + 1 for i in range(6)], [], '6_faulty'),
-        # ([2 * i + 1 for i in range(7)], [], '7_faulty'),
         ([2 * i + 1 for i in range(8)], [], '8_faulty'),
-        # ([2 * i + 1 for i in range(9)], [], '9_faulty'),
         ([2 * i + 1 for i in range(10)], [], '10_faulty'),
-        # ([2 * i + 1 for i in range(12)], [], '12_faulty'),
-        # ([2 * i + 1 for i in range(14)], [], '14_faulty'),
-        # ([2 * i + 1 for i in range(15)], [], '15_faulty'),
         ([], [2 * i + 2 for i in range(2)], '2_malicious'),
-        # ([], [2 * i + 2 for i in range(4)], '4_malicious'),
         ([], [2 * i + 2 for i in range(6)], '6_malicious'),
-        # ([], [2 * i + 2 for i in range(7)], '7_malicious'),
         ([], [2 * i + 2 for i in range(8)], '8_malicious'),
-        # ([], [2 * i + 2 for i in range(9)], '9_malicious'),
         ([], [2 * i + 2 for i in range(10)], '10_malicious'),
-        # ([], [2 * i + 2 for i in range(12)], '12_malicious'),
-        # ([], [2 * i + 2 for i in range(14)], '14_malicious'),
-        # ([], [2 * i + 2 for i in range(15)], '15_malicious'),
         ([2 * i + 1 for i in range(1)], [2 * i + 2 for i in range(1)], '1_faulty,1_malicious'),
-        # ([2 * i + 1 for i in range(2)], [2 * i + 2 for i in range(2)], '2_faulty,2_malicious'),
-        # ([2 * i + 1 for i in range(3)], [2 * i + 2 for i in range(3)], '3_faulty,3_malicious'),
         ([2 * i + 1 for i in range(4)], [2 * i + 2 for i in range(4)], '4_faulty,4_malicious'),
-        # ([2 * i + 1 for i in range(5)], [2 * i + 2 for i in range(5)], '5_faulty,5_malicious'),
-        # ([2 * i + 1 for i in range(6)], [2 * i + 2 for i in range(6)], '6_faulty,6_malicious'),
-        # ([2 * i + 1 for i in range(7)], [2 * i + 2 for i in range(7)], '7_faulty,7_malicious'),
-        # ([2 * i + 1 for i in range(8)], [2 * i + 2 for i in range(8)], '8_faulty,8_malicious')
     ]
 
     # # Workaround to run experiments in parallel runs:
@@ -998,12 +971,132 @@ def withAndWithoutDPandKAnonymization_withAndWithoutByz_10ByzClients_onDiabetes(
     learningRate = 0.00001
     batchSize = 10
     epochs = 5
-    rounds = 10
+    rounds = 50
 
     percUsers = torch.tensor([0.1, 0.15, 0.2, 0.2, 0.1, 0.15, 0.1, 0.15, 0.2, 0.2])
 
-    __groupedExperiments_SyntacticVsDP(batchSize, epochs, epsilon1, epsilon3, learningRate, percUsers,
-                                       releaseProportion, rounds, __experimentOnDiabetes)
+    # Vanilla
+    noDPconfig = DefaultExperimentConfiguration()
+    noDPconfig.aggregators = agg.allAggregators()
+    noDPconfig.Optimizer = torch.optim.Adam
+    noDPconfig.learningRate = learningRate
+    noDPconfig.batchSize = batchSize
+    noDPconfig.epochs = epochs
+    noDPconfig.rounds = rounds
+    noDPconfig.percUsers = percUsers
+    __experimentOnDiabetes(noDPconfig)
+
+    # With DP
+    DPconfig = DefaultExperimentConfiguration()
+    DPconfig.Optimizer = torch.optim.Adam
+    DPconfig.aggregators = agg.allAggregators()
+    DPconfig.learningRate = learningRate
+    DPconfig.batchSize = batchSize
+    DPconfig.epochs = epochs
+    DPconfig.rounds = rounds
+    DPconfig.privacyPreserve = True
+    DPconfig.releaseProportion = releaseProportion
+    DPconfig.epsilon1 = epsilon1
+    DPconfig.epsilon3 = epsilon3
+    DPconfig.needClip = True
+    DPconfig.percUsers = percUsers
+    __experimentOnDiabetes(DPconfig)
+
+    # With k-anonymity
+    kAnonConfig = DefaultExperimentConfiguration()
+    kAnonConfig.Optimizer = torch.optim.Adam
+    kAnonConfig.aggregators = agg.allAggregators()
+    kAnonConfig.learningRate = learningRate
+    kAnonConfig.batchSize = batchSize
+    kAnonConfig.epochs = epochs
+    kAnonConfig.rounds = rounds
+    kAnonConfig.requireDatasetAnonymization = True
+    kAnonConfig.name = "k:4;"
+    kAnonConfig.percUsers = percUsers
+    __experimentOnDiabetes(kAnonConfig)
+
+    # With DP with one attacker
+    DPconfig = DefaultExperimentConfiguration()
+    DPconfig.Optimizer = torch.optim.Adam
+    DPconfig.aggregators = agg.allAggregators()
+    DPconfig.learningRate = learningRate
+    DPconfig.batchSize = batchSize
+    DPconfig.epochs = epochs
+    DPconfig.rounds = rounds
+
+    DPconfig.privacyPreserve = True
+    DPconfig.releaseProportion = releaseProportion
+    DPconfig.epsilon1 = epsilon1
+    DPconfig.epsilon3 = epsilon3
+    DPconfig.needClip = True
+
+    DPconfig.percUsers = percUsers
+
+    DPconfig.malicious = [1]
+    DPconfig.name = "altered:1_malicious"
+
+    __experimentOnDiabetes(DPconfig)
+    # With k-anonymity with one attacker
+    kAnonByzConfig = DefaultExperimentConfiguration()
+    kAnonByzConfig.Optimizer = torch.optim.Adam
+    kAnonByzConfig.aggregators = agg.allAggregators()
+    kAnonByzConfig.learningRate = learningRate
+    kAnonByzConfig.batchSize = batchSize
+    kAnonByzConfig.rounds = rounds
+    kAnonByzConfig.epochs = epochs
+
+    kAnonByzConfig.requireDatasetAnonymization = True
+
+    kAnonByzConfig.percUsers = percUsers
+
+    kAnonByzConfig.malicious = [1]
+    kAnonByzConfig.name = "k:4;"
+    kAnonByzConfig.name += "altered:1_malicious"
+
+    __experimentOnDiabetes(kAnonByzConfig)
+
+    # With DP with more attackers
+    DPbyzConfig = DefaultExperimentConfiguration()
+    DPbyzConfig.Optimizer = torch.optim.Adam
+    DPbyzConfig.aggregators = agg.allAggregators()
+    DPbyzConfig.learningRate = learningRate
+    DPbyzConfig.batchSize = batchSize
+    DPbyzConfig.epochs = epochs
+    DPbyzConfig.rounds = rounds
+
+    DPbyzConfig.privacyPreserve = True
+    DPbyzConfig.releaseProportion = releaseProportion
+    DPbyzConfig.epsilon1 = epsilon1
+    DPbyzConfig.epsilon3 = epsilon3
+    DPbyzConfig.needClip = True
+
+    DPbyzConfig.percUsers = percUsers
+
+    DPbyzConfig.malicious = [2, 4]
+    DPbyzConfig.faulty = [1]
+    DPbyzConfig.name = "altered:1_faulty,2_malicious"
+
+    __experimentOnDiabetes(DPbyzConfig)
+
+    # With k-anonymity with more attackers
+    kAnonByzConfig = DefaultExperimentConfiguration()
+    kAnonByzConfig.Optimizer = torch.optim.Adam
+    kAnonByzConfig.aggregators = agg.allAggregators()
+    kAnonByzConfig.learningRate = learningRate
+    kAnonByzConfig.batchSize = batchSize
+    kAnonByzConfig.epochs = epochs
+    kAnonByzConfig.rounds = rounds
+
+    kAnonByzConfig.requireDatasetAnonymization = True
+
+    kAnonByzConfig.percUsers = percUsers
+
+    kAnonByzConfig.malicious = [2, 4]
+    kAnonByzConfig.faulty = [3]
+    kAnonByzConfig.name = "k:4;"
+    kAnonByzConfig.name += "altered:1_faulty,2_malicious"
+
+    __experimentOnDiabetes(kAnonByzConfig)
 
 
 @experiment
@@ -1019,8 +1112,129 @@ def withAndWithoutDPandKAnonymization_withAndWithoutByz_3ByzClients_onDiabetes()
 
     percUsers = torch.tensor([0.3, 0.3, 0.4])
 
-    __groupedExperiments_SyntacticVsDP(batchSize, epochs, epsilon1, epsilon3, learningRate, percUsers,
-                                       releaseProportion, rounds, __experimentOnDiabetes)
+    # Vanilla
+    noDPconfig = DefaultExperimentConfiguration()
+    noDPconfig.aggregators = agg.allAggregators()
+    noDPconfig.Optimizer = torch.optim.Adam
+    noDPconfig.learningRate = learningRate
+    noDPconfig.batchSize = batchSize
+    noDPconfig.epochs = epochs
+    noDPconfig.rounds = rounds
+    noDPconfig.percUsers = percUsers
+    __experimentOnDiabetes(noDPconfig)
+
+    # With DP
+    DPconfig = DefaultExperimentConfiguration()
+    DPconfig.Optimizer = torch.optim.Adam
+    DPconfig.aggregators = agg.allAggregators()
+    DPconfig.learningRate = learningRate
+    DPconfig.batchSize = batchSize
+    DPconfig.epochs = epochs
+    DPconfig.rounds = rounds
+    DPconfig.privacyPreserve = True
+    DPconfig.releaseProportion = releaseProportion
+    DPconfig.epsilon1 = epsilon1
+    DPconfig.epsilon3 = epsilon3
+    DPconfig.needClip = True
+    DPconfig.percUsers = percUsers
+    __experimentOnDiabetes(DPconfig)
+
+    # With k-anonymity
+    kAnonConfig = DefaultExperimentConfiguration()
+    kAnonConfig.Optimizer = torch.optim.Adam
+    kAnonConfig.aggregators = agg.allAggregators()
+    kAnonConfig.learningRate = learningRate
+    kAnonConfig.batchSize = batchSize
+    kAnonConfig.epochs = epochs
+    kAnonConfig.rounds = rounds
+    kAnonConfig.requireDatasetAnonymization = True
+    kAnonConfig.name = "k:4;"
+    kAnonConfig.percUsers = percUsers
+    __experimentOnDiabetes(kAnonConfig)
+
+    # With DP with one attacker
+    DPconfig = DefaultExperimentConfiguration()
+    DPconfig.Optimizer = torch.optim.Adam
+    DPconfig.aggregators = agg.allAggregators()
+    DPconfig.learningRate = learningRate
+    DPconfig.batchSize = batchSize
+    DPconfig.epochs = epochs
+    DPconfig.rounds = rounds
+
+    DPconfig.privacyPreserve = True
+    DPconfig.releaseProportion = releaseProportion
+    DPconfig.epsilon1 = epsilon1
+    DPconfig.epsilon3 = epsilon3
+    DPconfig.needClip = True
+
+    DPconfig.percUsers = percUsers
+
+    DPconfig.malicious = [1]
+    DPconfig.name = "altered:1_malicious"
+
+    __experimentOnDiabetes(DPconfig)
+
+    # With k-anonymity with one attacker
+    kAnonByzConfig = DefaultExperimentConfiguration()
+    kAnonByzConfig.Optimizer = torch.optim.Adam
+    kAnonByzConfig.aggregators = agg.allAggregators()
+    kAnonByzConfig.learningRate = learningRate
+    kAnonByzConfig.batchSize = batchSize
+    kAnonByzConfig.rounds = rounds
+    kAnonByzConfig.epochs = epochs
+
+    kAnonByzConfig.requireDatasetAnonymization = True
+
+    kAnonByzConfig.percUsers = percUsers
+
+    kAnonByzConfig.malicious = [1]
+    kAnonByzConfig.name = "k:4;"
+    kAnonByzConfig.name += "altered:1_malicious"
+
+    __experimentOnDiabetes(kAnonByzConfig)
+
+    # With DP with more attackers
+    DPbyzConfig = DefaultExperimentConfiguration()
+    DPbyzConfig.Optimizer = torch.optim.Adam
+    DPbyzConfig.aggregators = agg.allAggregators()
+    DPbyzConfig.learningRate = learningRate
+    DPbyzConfig.batchSize = batchSize
+    DPbyzConfig.epochs = epochs
+    DPbyzConfig.rounds = rounds
+
+    DPbyzConfig.privacyPreserve = True
+    DPbyzConfig.releaseProportion = releaseProportion
+    DPbyzConfig.epsilon1 = epsilon1
+    DPbyzConfig.epsilon3 = epsilon3
+    DPbyzConfig.needClip = True
+
+    noDPconfig.percUsers = percUsers
+
+    DPbyzConfig.malicious = [2, 4]
+    DPbyzConfig.faulty = [1]
+    DPbyzConfig.name = "altered:1_faulty,2_malicious"
+
+    __experimentOnDiabetes(DPbyzConfig)
+
+    # With k-anonymity with more attackers
+    kAnonByzConfig = DefaultExperimentConfiguration()
+    kAnonByzConfig.Optimizer = torch.optim.Adam
+    kAnonByzConfig.aggregators = agg.allAggregators()
+    kAnonByzConfig.learningRate = learningRate
+    kAnonByzConfig.batchSize = batchSize
+    kAnonByzConfig.epochs = epochs
+    kAnonByzConfig.rounds = rounds
+
+    kAnonByzConfig.requireDatasetAnonymization = True
+
+    kAnonByzConfig.percUsers = percUsers
+
+    kAnonByzConfig.malicious = [2, 4]
+    kAnonByzConfig.faulty = [3]
+    kAnonByzConfig.name = "k:4;"
+    kAnonByzConfig.name += "altered:1_malicious"
+
+    __experimentOnDiabetes(kAnonByzConfig)
 
 
 def __groupedExperiments_SyntacticVsDP(batchSize, epochs, epsilon1, epsilon3, learningRate, percUsers,
@@ -1163,6 +1377,7 @@ def noByz_HeartDisease():
 
     __experimentOnHeartDisease(config)
 
+
 @experiment
 def withAndWithoutDPandKAnonymization_withAndWithoutByz_3ByzClients_onHeartDisease():
     percUsers = torch.tensor([.3, .3, .4])
@@ -1176,18 +1391,143 @@ def withAndWithoutDPandKAnonymization_withAndWithoutByz_3ByzClients_onHeartDisea
     epochs = 10
     rounds = 100
 
-    __groupedExperiments_SyntacticVsDP(batchSize, epochs, epsilon1, epsilon3, learningRate, percUsers,
-                                       releaseProportion, rounds, __experimentOnHeartDisease)
+    # Vanilla
+    noDPconfig = DefaultExperimentConfiguration()
+    noDPconfig.aggregators = agg.allAggregators()
+    noDPconfig.Optimizer = torch.optim.Adam
+    noDPconfig.learningRate = learningRate
+    noDPconfig.batchSize = batchSize
+    noDPconfig.epochs = epochs
+    noDPconfig.rounds = rounds
+    noDPconfig.percUsers = percUsers
+    __experimentOnHeartDisease(noDPconfig)
+
+    # With DP
+    DPconfig = DefaultExperimentConfiguration()
+    DPconfig.Optimizer = torch.optim.Adam
+    DPconfig.aggregators = agg.allAggregators()
+    DPconfig.learningRate = learningRate
+    DPconfig.batchSize = batchSize
+    DPconfig.epochs = epochs
+    DPconfig.rounds = rounds
+    DPconfig.privacyPreserve = True
+    DPconfig.releaseProportion = releaseProportion
+    DPconfig.epsilon1 = epsilon1
+    DPconfig.epsilon3 = epsilon3
+    DPconfig.needClip = True
+    DPconfig.percUsers = percUsers
+    __experimentOnHeartDisease(DPconfig)
+
+    # With k-anonymity
+    kAnonConfig = DefaultExperimentConfiguration()
+    kAnonConfig.Optimizer = torch.optim.Adam
+    kAnonConfig.aggregators = agg.allAggregators()
+    kAnonConfig.learningRate = learningRate
+    kAnonConfig.batchSize = batchSize
+    kAnonConfig.epochs = epochs
+    kAnonConfig.rounds = rounds
+    kAnonConfig.requireDatasetAnonymization = True
+    kAnonConfig.name = "k:2;"
+    kAnonConfig.percUsers = percUsers
+    __experimentOnHeartDisease(kAnonConfig)
+
+    # With DP with one attacker
+    DPconfig = DefaultExperimentConfiguration()
+    DPconfig.Optimizer = torch.optim.Adam
+    DPconfig.aggregators = agg.allAggregators()
+    DPconfig.learningRate = learningRate
+    DPconfig.batchSize = batchSize
+    DPconfig.epochs = epochs
+    DPconfig.rounds = rounds
+
+    DPconfig.privacyPreserve = True
+    DPconfig.releaseProportion = releaseProportion
+    DPconfig.epsilon1 = epsilon1
+    DPconfig.epsilon3 = epsilon3
+    DPconfig.needClip = True
+
+    DPconfig.percUsers = percUsers
+
+    DPconfig.malicious = [1]
+    DPconfig.name = "altered:1_malicious"
+
+    __experimentOnHeartDisease(DPconfig)
+
+    # With k-anonymity with one attacker
+    kAnonByzConfig = DefaultExperimentConfiguration()
+    kAnonByzConfig.Optimizer = torch.optim.Adam
+    kAnonByzConfig.aggregators = agg.allAggregators()
+    kAnonByzConfig.learningRate = learningRate
+    kAnonByzConfig.batchSize = batchSize
+    kAnonByzConfig.rounds = rounds
+    kAnonByzConfig.epochs = epochs
+
+    kAnonByzConfig.requireDatasetAnonymization = True
+
+    kAnonByzConfig.percUsers = percUsers
+
+    kAnonByzConfig.malicious = [1]
+    kAnonByzConfig.name = "k:2;"
+    kAnonByzConfig.name += "altered:1_malicious"
+
+    __experimentOnHeartDisease(kAnonByzConfig)
+
+    # With DP with more attackers
+    DPbyzConfig = DefaultExperimentConfiguration()
+    DPbyzConfig.Optimizer = torch.optim.Adam
+    DPbyzConfig.aggregators = agg.allAggregators()
+    DPbyzConfig.learningRate = learningRate
+    DPbyzConfig.batchSize = batchSize
+    DPbyzConfig.epochs = epochs
+    DPbyzConfig.rounds = rounds
+
+    DPbyzConfig.privacyPreserve = True
+    DPbyzConfig.releaseProportion = releaseProportion
+    DPbyzConfig.epsilon1 = epsilon1
+    DPbyzConfig.epsilon3 = epsilon3
+    DPbyzConfig.needClip = True
+
+    noDPconfig.percUsers = percUsers
+
+    DPbyzConfig.malicious = [2, 4]
+    DPbyzConfig.faulty = [1]
+    DPbyzConfig.name = "altered:1_faulty,2_malicious"
+
+    __experimentOnHeartDisease(DPbyzConfig)
+
+    # With k-anonymity with more attackers
+    kAnonByzConfig = DefaultExperimentConfiguration()
+    kAnonByzConfig.Optimizer = torch.optim.Adam
+    kAnonByzConfig.aggregators = agg.allAggregators()
+    kAnonByzConfig.learningRate = learningRate
+    kAnonByzConfig.batchSize = batchSize
+    kAnonByzConfig.epochs = epochs
+    kAnonByzConfig.rounds = rounds
+
+    kAnonByzConfig.requireDatasetAnonymization = True
+
+    kAnonByzConfig.percUsers = percUsers
+
+    kAnonByzConfig.malicious = [2, 4]
+    kAnonByzConfig.faulty = [3]
+    kAnonByzConfig.name = "k:4;"
+    kAnonByzConfig.name += "altered:1_malicious"
+
+    __experimentOnHeartDisease(kAnonByzConfig)
+
 
 @experiment
 def customExperiment():
     config = DefaultExperimentConfiguration()
-    __experimentOnHeartDisease(config)
+    config.percUsers = torch.tensor([1.])
+
+    config.learningRate = 0.0001
+    config.batchSize = 20
+    config.epochs = 10
+    config.rounds = 100
+
+    # config.requireDatasetAnonymization = True
+    __experimentOnDiabetes(config)
 
 
-# withAndWithoutDPandKAnonymization_withAndWithoutByz_3ByzClients_onDiabetes()
-# withAndWithoutDPandKAnonymization_withAndWithoutByz_3ByzClients_onHeartDisease()
-# customExperiment()
-# noByz_HeartDisease()
-#
-withAndWithoutDP_manyXisAFA_30ByzAndNotClients_onMNIST()
+customExperiment()
