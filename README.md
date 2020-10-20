@@ -44,7 +44,7 @@ Within this project we have intergrated concepts and implementations coming from
 
 *Wenqi Li, Fausto Milletarì, Daguang Xu, Nicola Rieke, Jonny Hancox, Wentao Zhu, Maximilian Baust, Yan Cheng, Sébastien Ourselin, M Jorge Cardoso, et al. 2019. Privacy-preserving federated brain tumour segmentation. In International Workshop on Machine Learning in Medical Imaging. Springer, 133–141.*
 
-*Lindawangg/COVID-Net. Github, 2020. https://github.com/lindawangg/COVID-Net/ blob/master/docs/COVIDx.md*
+*Lindawangg/COVID-Net. Github, 2020. https://github.com/lindawangg/COVID-Net/blob/master/docs/COVIDx.md*
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
