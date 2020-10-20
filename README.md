@@ -27,3 +27,24 @@ Firstly, a new DatasetLoader child class needs to be created for the newly consi
 In order to use a new model, this could be added to the classifiers directory within a dedicated module file. Finally, all of those elements could be put together within the main.py experiment setup methods, similarly to the already existing ones.
 
 We also provided a straight forward mechanism of extending the code base to use new aggregation schemes: creating child classes of the Aggregator class in aggregators.py module.
+
+## References
+
+Within this project we have intergrated concepts and implementations coming from several pices of work related to the subject.  
+
+Luis Muñoz-González, Kenneth T Co, and Emil C Lupu. 2019. Byzantine-robust federated machine learning through adaptive model averaging. arXiv preprint arXiv:1909.05125 (2019)
+
+Peva Blanchard, Rachid Guerraoui, Julien Stainer, et al. 2017. Machine learning with adversaries: Byzantine tolerant gradient descent. In Advances in Neural Information Processing Systems. 119–129
+
+Dong Yin, Yudong Chen, Ramchandran Kannan, and Peter Bartlett. 2018. Byzantine-Robust Distributed Learning: Towards Optimal Statistical Rates. In International Conference on Machine Learning. 5650–5659.
+
+Olivia Choudhury, Aris Gkoulalas-Divanis, Theodoros Salonidis, Issa Sylla, Yoonyoung Park, Grace Hsu, and Amar Das. 2020. Anonymizing Data for PrivacyPreserving Federated Learning. arXiv preprint arXiv:2002.09096 (2020).
+
+Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. Deep residual learning for image recognition. 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR), Jun 2016. doi: 10.1109/cvpr.2016.90. Available: http://dx.doi.org/10.1109/CVPR.2016.90.
+
+Wenqi Li, Fausto Milletarì, Daguang Xu, Nicola Rieke, Jonny Hancox, Wentao Zhu, Maximilian Baust, Yan Cheng, Sébastien Ourselin, M Jorge Cardoso, et al. 2019. Privacy-preserving federated brain tumour segmentation. In International Workshop on Machine Learning in Medical Imaging. Springer, 133–141
+
+Lindawangg/COVID-Net. Github, 2020. https://github.com/lindawangg/COVID-Net/ blob/master/docs/COVIDx.md
+
+
+
