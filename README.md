@@ -1,4 +1,4 @@
-# Federated Learning:Model Poisoning Attacks in Healthcare
+# Federated Learning: Model Poisoning Attacks in Healthcare
 
 This project constitutes a simulation environment for FL tasks that facilitates evaluating the perfomance of the different robbust and privacy preserving FL techniques against different attack scenrios.
 At the current stage, the project tackles several aspects of FL in adversarial settings.
