@@ -12,12 +12,12 @@ At the current stage, the project tackles several aspects of FL in adversarial s
 ## Initial set-up
 
 We recomend using Python 3.6 for compatibility with all the used modules and libraries.
-setupVenvOnGPUCluster.sh is the script that can be used for the initial setup of the python virtual enviroment; we have used it for the cloud-based virtual machines and the GPU cluster
+setupVenvOnGPUCluster.sh is the script that can be used for the initial setup of the python virtual enviroment; we have used it for the cloud-based virtual machines and the GPU cluster provided by from Imperial College Cloud
 
 ### Using the running scripts
 
 runExperiment.sh and stopLastExperiment.sh can be used for running the script locally or on a virtual machine send write the output to file.
-runExperimentGPU.sh can be used for running the experiment using the Slurm GPU Cluster from Imperial Cloud
+runExperimentGPU.sh can be used for running the experiment using the Slurm GPU Cluster from Imperial College Cloud
 
 ## Extending the project
 
