@@ -30,7 +30,7 @@ We also provided a straight forward mechanism of extending the code base to use 
 
 ## References
 
-Within this project we have intergrated concepts and implementations coming from several pices of work related to the subject.  
+Within this project we have intergrated concepts and implementations coming from several pieces of work related to the subject.  
 
 *Luis Muñoz-González, Kenneth T Co, and Emil C Lupu. 2019. Byzantine-robust federated machine learning through adaptive model averaging. arXiv preprint arXiv:1909.05125 (2019)*
 
