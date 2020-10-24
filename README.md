@@ -8,6 +8,11 @@ At the current stage, the project tackles several aspects of FL in adversarial s
 - **Privacy preserving FL**: we have experimented with client level differential privacy and the syntactic approch for FL, that makes use of Information loss to perform generalisation over the training and testing datasets. 
 
 - **FL Adversial stragegies**: We have simulated two different startegies attackers can have: labe-flippinng attacks or byzantine ones, that send noisy parameter updates.
+
+## Associated paper
+
+*Grama, M., Musat, M., Muñoz-González, L., Passerat-Palmbach, J., Rueckert, D., & Alansary, A. (2020). Robust Aggregation for Adaptive Privacy Preserving Federated Learning in Healthcare. arXiv preprint arXiv:2009.08294.*
+
 ---
 ## Initial set-up
 
